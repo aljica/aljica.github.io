@@ -1,10 +1,8 @@
 ---
 layout: post
-title:  "The Linux Programming Interface"
+title:  "The Linux Programming Interface Chapter 4"
 categories: tlpi
 published: true
 hidden: false
 ---
-The Linux Programming Interface by Michael Kerrisk
-
-[Link Text](https://aljica.github.io/outside)
+TLPI Chapter 4 Summary Here
