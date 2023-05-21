@@ -3,7 +3,7 @@ layout: post
 title:  "The Linux Programming Interface"
 categories: tlpi
 published: true
-hidden: true
+hidden: false
 ---
 The Linux Programming Interface by Michael Kerrisk
 
