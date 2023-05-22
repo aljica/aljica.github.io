@@ -1,5 +1,5 @@
 ---
 layout: home
-title: All Posts Ever Made On This Blog
+title: Posts
 permalink: /posts/
 ---
