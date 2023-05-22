@@ -24,3 +24,5 @@ permalink: /linux/
 <h3>UNIX and Linux System Administration Handbook 5th Edition</h3>
 
 * [Chapter 2: Booting and System Management Daemon]({{site.url}}/sysadmin/2023/05/22/sysadmin-ch2.html)
+
+* [Chapter 3: Access Controls]({{site.url}}/sysadmin/2023/05/22/sysadmin-ch3.html)

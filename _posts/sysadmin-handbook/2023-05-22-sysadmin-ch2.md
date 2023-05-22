@@ -112,5 +112,45 @@ categories: sysadmin
 			§ You can also do this with systemctl edit nginx.service. (then you still must run systemctl restart nginx.service for changes to take effect).
 			§ To set the [INSTALL] section of the unit file, just use systemctl add-wants, systemctl add-requires.
 	• Service and startup control caveats
-		
-		
+        * Red Hat /etc/sysconfig
+            * iptables-config, selinux, console/ directory for keymappings, and more.
+            * network-scripts/ifcfg-eth0 contains configuration information for the eth0 network interface.
+            * iptables-config is only for loading additional iptables modules; not to change iptables config. That's done elsewhere.
+    * Systemd logging
+        * With the advent of the cloud, diagnostic information was easily lost. Cannot just stare at the terminal to see error output!
+        * journald daemon collects system messages from early boot time to final shutdown.
+        * You can see the logs with journalctl.
+        * rsyslog can forward logs to a remote syslog server or turn them into more ordinary log file formats.
+        * /etc/systemd/journald.conf => here you can set configuration options 
+            * For example, you might set Storage=persistent, which will save logs across reboots/sessions.
+
+# 2.8 FreeBSD Init and startup scripts
+
+* Startup process for FreeBSD:
+    * init => /etc/rc (wrapper which triggers other startup scripts...) => config files: /etc/defaults/config, /etc/rc.conf, /etc/rc.conf.local => /usr/local/etc/rc.d and /etc/rc.d.
+    * Startup scripts are run in an order that can be seen with rcorder command.
+
+# 2.9 Reboot and shutdown procedures
+
+* halt and reboot commands
+    * Technically the same; reboot prepares AND shuts the system down; halt prepares but does not actually shut it down (unless you do halt -p).
+    * shutdown does not differ at all technically from reboot and halt.
+
+# 2.10 Stratagems for a non booting system
+
+* 3 things to do:
+    * Don't debug; restore to a previous good state.
+    * Get a recovery mode shell, and investigate interactively.
+    * Load a separate (live) OS image and debug the primary one from there.
+
+* Single-user mode
+    * Recovery mode, minimal startup, no network, just basic initialization.
+    * Red Hat tries to mount file systems as well. This might be problematic if the file system is corrupt.
+        * Control this with kernel parameters; systemd.unit=emergency.target (from GRUB) will boot without mounting file systems.
+* Enter single-user mode on systems that use systemd/GRUB:
+    * append: systemd.unit=rescue.target to the end of the kernel parameters (press e on the GRUB screen for the kernel you wish to boot).
+
+* Recovery for cloud systems
+    * Reset to known good state!
+    * You can, if necessary, launch for example a separate VM/EC2 instance, unmount the disk from the problem VM/EC2 and attach it to the new VM/EC2. From the new VM/EC2, which runs another primary, good state OS, you can mount the problem file system and try to fix it from there.
+
