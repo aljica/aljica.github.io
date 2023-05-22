@@ -81,3 +81,9 @@ ls -l
 * For clarity: run su in a terminal and you will have root access to the system via that terminal process instance.
 * You can also use `su - username`
     * This prompts you for the password for the user 'username', and then you get access to that account.
+
+<details>
+  <summary>Spoiler Placeholder</summary>
+  
+  Placeholder
+</details>
