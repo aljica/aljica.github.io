@@ -87,3 +87,57 @@ ls -l
   
   Placeholder
 </details>
+
+* Security: Make a habit of calling the full path: /bin/su or /usr/bin/su.
+* Also, don't include the current directory "." as a search path for your terminal.
+    * Reason: Attacks can keep fake versions of commonly used commands such as su which could collect passwords.
+
+# sudo: limited su
+
+* sudo takes a command line as argument.
+* It checks /etc/sudoers to see if the user requesting the privileged operation is allowed to use sudo.
+* Re-typing password after one sudo usage is configurable; time-out period of always require password entry.
+* sudo logs who used it, when, etc. Can be logged by syslog.
+    * Ideally forward from syslog to a central log server.
+
+#### Example Configuration
+
+![Image](/docs/assets/images/sysadmin-handbook/ch3/sudoers-config.png)
+
+* First two lines define groups of hosts
+* The permissions section:
+    * First are the user(s) the permissions apply to
+    * Then the machine hosts
+    * The commands the users can run
+    * The users as whom the commands can be executed
+
+* First permission line:
+    * Applies to mark and ed
+    * On the machines in the PHYSICS group
+    * Built-in command ALL means they can run ANY command
+
+* Second line:
+    * herb can run tcpdump on CS group machines, and DUMP-related commands on PHYSICS machines.
+    * The DUMP-commands can only be run as operator, so the actual command herb would run would be:
+    * `ubuntu$ sudo -u operator /usr/sbin/dump 0u /dev/sda1`
+
+* Third line:
+    * Lynda can run commands on any machine as any user, except shell.
+    * She can still get a shell, though:
+    `ubuntu$ cp -r /bin/sh /tmp/sh`
+    `ubuntu$ sudo /tmp/sh`
+    * Technically speaking, whenever you say "everything except...", there's usually a way around it.
+        * But, you can still set your sudoers file as such to denote that root shells are discouraged.
+
+* Fourth and final line:
+    * Users in group wheel can run:
+        * watchdog command as root on all machines except PHYSICS machines.
+        * No password required to run the command.
+
+
+* Commands in sudoers file contain full path names, to prevent execution of user-created files with the same name.
+* Edit sudoers file with visudo.
+    * It checks that no one is already editing the file.
+    * Verifies syntax of the edited file.
+        * Otherwise, you may not be able to sudo back into it if the syntax is off and breaks something.
+        
