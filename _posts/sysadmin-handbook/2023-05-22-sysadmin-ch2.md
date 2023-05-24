@@ -14,6 +14,10 @@ categories: sysadmin
 
 ![Image](/docs/assets/images/sysadmin-handbook/ch2/5.png)
 
+<!--
+<img src="/docs/assets/images/sysadmin-handbook/ch2/5.png" width="350" height="600">
+-->
+
 # 2.6 SYS MANAGEMENT DAEMONS
 
 	• Kernel gets loaded into memory
