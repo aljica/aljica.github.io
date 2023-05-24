@@ -3,8 +3,6 @@ layout: page
 title: Security
 permalink: /security/
 ---
-<h3>CISSP</h3>
+<h3>CISSP OSG 9th Edition Summary</h3>
 
-* [Notes To Be Added]({{site.url}}/security/)
-
-<h3>NIST, ISO, OWASP, MITRE</h3>
+* [Chapter 6 Cryptography and Symmetric Key Algorithms]({{site.url}}/cissp/2023/05/23/cissp-ch6.html)
