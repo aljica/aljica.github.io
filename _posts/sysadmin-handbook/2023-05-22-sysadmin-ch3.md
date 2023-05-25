@@ -256,4 +256,84 @@ ADMINS          ALL = (ALL) NOPASSWD : /usr/sbin/logrotate
 
 # Disabling the root account
 
+* Disable by setting root password to something like ! or *.
+    * ! and * don't produce valid hashes, so Linux disables the account.
+* Disabling sudo makes sense for cloud/virtual instances.
+* But keeping the root account on your own physical hardware makes sense to deal with configuration problems, rescuing, etc.
 
+# System accounts other than root
+
+* UIDs under 10 are system accounts.
+* UIDs 10 - 100 are pseudo-users associated with elevated privileges on certain software.
+* Set their passwords in shadow or master.passwd files to * to disable them.
+    * Also set their shells /bin/false or /bin/nologin.
+        * Protects against remote login exploits.
+* E.g. "mysql" pseudo-user.
+* Network File System:
+    * "nobody" pseudo-user on remote systems represent root for the NFS!
+
+### 3.3 Extensions to the standard access control model
+
+* What we have covered so far covers the Linux traditional access control model.
+* It has stood the test of time, it's simple, predictable and just works.
+* In the last few years/decade, Linux access control systems have been more modularized.
+    * You pick and choose what sort of AC system you need.
+
+# Drawbacks of the standard model
+
+* Root account is a single point of failure.
+* SetUID programs to circumvent root; but these are not secure.
+* No file/OS integrity checking.
+* Group definition is a privilege operation. Regular user cannot set group restrictions on a file.
+* Access control rules are embedded in code: inconvenient/error-prone to redefine system behavior.
+* Little support for audit/logs.
+
+# PAM: Pluggable authentication modules
+
+* PAM: _Authentication framework_
+* Programs that require user authentication ask the PAM module (which is a wrapper) to verify the identity.
+* The PAM module takes the request and verifies it with the authentication library specified by the system administrator.
+    * Sysadmin can also specify which library to use based on context, etc.
+* PAM answers "How do I know this is User X?", i.e. does not answer if they are authorized to view something. That's up to the application.
+
+# Kerberos: network cryptographic authentication
+
+* _Authentication method_
+* You can specify Keberoes as authentication method in a PAM module.
+* Kerberos is used by Microsoft's Active Directory.
+* Users provide their password to Kerberos, and it hands users a cryptographic token they can use and show to services they wish to access to prove their identity.
+
+# Filesystem access control list
+
+* Part of the filesystem implementation
+* A list that shows which user(s)/group(s) have access to which file system resource(s)
+
+# Linux capabilities
+
+* Capabilities can be inherited from a parent process.
+* Processes can renounce capabilities they will not use.
+* Root: union of all capabilities.
+* CAP_NET_BIND_SERVICE capability allows a process to bind to privileged network ports (i.e. below 1024).
+    * Such a process can run as an unprivileged user and only pick up that capability as it needs it!
+* Used by e.g. AppArmor, Docker, etc.
+
+# Linux namespaces
+
+* Segregate file system, network ports, processes. 
+* Kind of like a "jail"/sandbox - used by Docker!
+* Even a root user can only access what they see in their namespace - i.e. the segregated part of the file system/ports/processes they have a view of.
+
+### 3.4 Modern access control
+
+* Linux Security Modules (LSM) kernel-level API.
+    * Allows to plug in other access control systems to Linux, such as SELinux.
+* Limited to ONE LSM module at a time.
+
+# Separate ecosystems
+
+* Every Linux distribution (distro) has only 1 or 2 access control mechanisms it actively supports.
+* There is no standardization among alternative access control systems, hence why.
+
+# Mandatory access control
+
+* 
