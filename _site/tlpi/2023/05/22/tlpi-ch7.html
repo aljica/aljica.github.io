@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1"><!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>The Linux Programming Interface Chapter 7 Memory Allocation Summary | aljica</title>
+<meta name="generator" content="Jekyll v3.8.6" />
+<meta property="og:title" content="The Linux Programming Interface Chapter 7 Memory Allocation Summary" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="• Heap is a contiguous region in memory ○ Malloc() to allocate memory § Malloc() builds upon brk() and sbrk() □ These are called so because they change the &quot;program break&quot;, i.e. the current limit of the heap. ○ Simply adjust program break to adjust the size of the heap ○ PHYSICAL MEMORY is NOT allocated UNTIL the program tries to ACCESS the newly allocated memory • Brk(end_segment) ○ Set the program break ○ This gets rounded up to nearest page boundary, as allocation happens in pages. ○ Restrictions on max size based on multiple factors, such as location of various other memory sets (shared libaries, stack etc). • Sbrk(increment) ○ Sbrk(1) increases the heap by 1 page. ○ Its return value is the old program break; which is the START of the newly allocated page. ○ Sbrk(0) simply returns the current program break; this can also be useful. • Void Malloc(size) ○ Does not allocate memory until used ○ Maintains a list so we can free() unused memory ○ Returns pointer pointing to the newly allocated memory ○ Is on a BYTE BOUNDARY, so appropriate for any char/int/data type we wish to assign there (efficient access). • Free(pointer) ○ Adds the memory block to a &quot;free&quot; list. § Note that program break cannot simply be reduced; free&#39;d memory is usually in the middle of the heap. § Another reason is that the program will likely use that memory in the future anyway, so no need to reduce heap size. • Memalloc/free_and_sbrk.c example ○ In essence, the program break remains the same before and after free(). ○ However, if free() is used at memory regions at the top end of the heap, then the program break is actually decreased. § The reason for this is that the glibc free() function checks if free&#39;d memory is adjacent, and if it is, it groups them into one big block of free memory. □ This is to ensure that we do not have a bunch of small free sets of memory, which might not be able to satisfy a future call to malloc() depending on the size passed to malloc(). • Free() caveats ○ Upon program termination, all allocated memory is returned to the system (i.e. automatically free&#39;d). ○ It still might be good to use free even though your program will terminate (and is not a continuously running system e.g. a web server): § Makes code more readable &amp; maintainable, so you understand what memory has been free&#39;d and is thus no longer in use. § Identifying REAL memory leaks: any unfree&#39;d memory will be reported as a memory leak. • Implementation of malloc and free ○ Malloc implementation § It first checks the free list. □ If memory with the required size is available, it takes just as much as it needs and allocates it. § Else, it uses sbrk() to allocate memory; usually some multiple of the virtual memory page size, then adds it to the free list. □ Malloc can now allocate this memory from the free list. ○ Free implementation § Malloc() includes a length of block, and returns pointer as suggested by the image on the right. § Free list includes length of block, pointer to previous and next free blocks, and then the free memory. § Secure programming: □ If the length value is accidentally incremented, then the block is deallocated, but then re-allocated, then the program thinks it has 2 distinct memory blocks, but the first one actually overlaps with the adjacent one. See the image in red to the right. □ Prevention: ® Always free unused memory to avoid memory leaks in daemon/long-running processes. ® Always free memory with a pointer returned by malloc and do not modify it. ® Do not free memory twice. • Malloc debugging ○ Mtrace() and muntrace() § MALLOC_TRACE environment var should also be set § Writes log output to a file and runs scripts to interpret these logs ○ Mcheck() and mprobe() § Probes allocated memory regions; checks if your code is trying to read/write out of bounds. ○ Only use the malloc() package with debugging features in dev environment; turn them off in production (i.e. use the regular malloc package in C standard library) § This is because debugging malloc package takes more memory, slower run-time etc. ○ Other tools: Valgrind and Insure++ ○ Mallopt() § Use this function to set configuration parameters for malloc() § Such configuration parameters might be: □ How much free memory needs to exist at the top of the heap before sbrk() is called to reduce heap size. • Other heap memory allocation methods ○ Calloc(numitems, size) § Allocates memory for a set number of items that each have the same fixed size ○ Realloc(ptr, size) § Given a pointer to an existing allocated block of memory, realloc resizes that memory block to size. § Assuming the requested size is greater than the current size: □ If there is enough adjacent memory available, it is allocated. □ If the memory block being resized is at the top end of the heap, the program break is extended. □ If the memory block is in the middle of the heap and there is not enough adjacent memory available, a new memory block is allocated (either from the free list or at the top end of the heap) and all data is copied from old block to new block. ® Very CPU-intensive. Use very sparingly. ○ Memalign(size_t boundary, size_t size) § Allocates size bytes starting at an address aligned to a multiple of boundary (which must be a power of two) • Allocating memory on the stack ○ Alloca(size_t) § Allocates data on the stack □ Does this by moving the stack pointer further up § Do NOT use free() or realloc() on this data □ The data will be freed automatically when the function that called alloca() returns □ Realloc() will ruin the stack frames of subsequent function calls § Especially useful with longjmp() □ If you use malloc() and you use longjmp() to handle a signal to jump back to some previous function, any malloc()&#39;d memory will not be free&#39;d. But, if you used alloca(), then as the functions return, they will automatically free their alloca()&#39;d memory. ○ You must y = alloca() and not func(x, alloca(), z) § Doing so would put the allocated memory in the function parameter space of the stack frame." />
+<meta property="og:description" content="• Heap is a contiguous region in memory ○ Malloc() to allocate memory § Malloc() builds upon brk() and sbrk() □ These are called so because they change the &quot;program break&quot;, i.e. the current limit of the heap. ○ Simply adjust program break to adjust the size of the heap ○ PHYSICAL MEMORY is NOT allocated UNTIL the program tries to ACCESS the newly allocated memory • Brk(end_segment) ○ Set the program break ○ This gets rounded up to nearest page boundary, as allocation happens in pages. ○ Restrictions on max size based on multiple factors, such as location of various other memory sets (shared libaries, stack etc). • Sbrk(increment) ○ Sbrk(1) increases the heap by 1 page. ○ Its return value is the old program break; which is the START of the newly allocated page. ○ Sbrk(0) simply returns the current program break; this can also be useful. • Void Malloc(size) ○ Does not allocate memory until used ○ Maintains a list so we can free() unused memory ○ Returns pointer pointing to the newly allocated memory ○ Is on a BYTE BOUNDARY, so appropriate for any char/int/data type we wish to assign there (efficient access). • Free(pointer) ○ Adds the memory block to a &quot;free&quot; list. § Note that program break cannot simply be reduced; free&#39;d memory is usually in the middle of the heap. § Another reason is that the program will likely use that memory in the future anyway, so no need to reduce heap size. • Memalloc/free_and_sbrk.c example ○ In essence, the program break remains the same before and after free(). ○ However, if free() is used at memory regions at the top end of the heap, then the program break is actually decreased. § The reason for this is that the glibc free() function checks if free&#39;d memory is adjacent, and if it is, it groups them into one big block of free memory. □ This is to ensure that we do not have a bunch of small free sets of memory, which might not be able to satisfy a future call to malloc() depending on the size passed to malloc(). • Free() caveats ○ Upon program termination, all allocated memory is returned to the system (i.e. automatically free&#39;d). ○ It still might be good to use free even though your program will terminate (and is not a continuously running system e.g. a web server): § Makes code more readable &amp; maintainable, so you understand what memory has been free&#39;d and is thus no longer in use. § Identifying REAL memory leaks: any unfree&#39;d memory will be reported as a memory leak. • Implementation of malloc and free ○ Malloc implementation § It first checks the free list. □ If memory with the required size is available, it takes just as much as it needs and allocates it. § Else, it uses sbrk() to allocate memory; usually some multiple of the virtual memory page size, then adds it to the free list. □ Malloc can now allocate this memory from the free list. ○ Free implementation § Malloc() includes a length of block, and returns pointer as suggested by the image on the right. § Free list includes length of block, pointer to previous and next free blocks, and then the free memory. § Secure programming: □ If the length value is accidentally incremented, then the block is deallocated, but then re-allocated, then the program thinks it has 2 distinct memory blocks, but the first one actually overlaps with the adjacent one. See the image in red to the right. □ Prevention: ® Always free unused memory to avoid memory leaks in daemon/long-running processes. ® Always free memory with a pointer returned by malloc and do not modify it. ® Do not free memory twice. • Malloc debugging ○ Mtrace() and muntrace() § MALLOC_TRACE environment var should also be set § Writes log output to a file and runs scripts to interpret these logs ○ Mcheck() and mprobe() § Probes allocated memory regions; checks if your code is trying to read/write out of bounds. ○ Only use the malloc() package with debugging features in dev environment; turn them off in production (i.e. use the regular malloc package in C standard library) § This is because debugging malloc package takes more memory, slower run-time etc. ○ Other tools: Valgrind and Insure++ ○ Mallopt() § Use this function to set configuration parameters for malloc() § Such configuration parameters might be: □ How much free memory needs to exist at the top of the heap before sbrk() is called to reduce heap size. • Other heap memory allocation methods ○ Calloc(numitems, size) § Allocates memory for a set number of items that each have the same fixed size ○ Realloc(ptr, size) § Given a pointer to an existing allocated block of memory, realloc resizes that memory block to size. § Assuming the requested size is greater than the current size: □ If there is enough adjacent memory available, it is allocated. □ If the memory block being resized is at the top end of the heap, the program break is extended. □ If the memory block is in the middle of the heap and there is not enough adjacent memory available, a new memory block is allocated (either from the free list or at the top end of the heap) and all data is copied from old block to new block. ® Very CPU-intensive. Use very sparingly. ○ Memalign(size_t boundary, size_t size) § Allocates size bytes starting at an address aligned to a multiple of boundary (which must be a power of two) • Allocating memory on the stack ○ Alloca(size_t) § Allocates data on the stack □ Does this by moving the stack pointer further up § Do NOT use free() or realloc() on this data □ The data will be freed automatically when the function that called alloca() returns □ Realloc() will ruin the stack frames of subsequent function calls § Especially useful with longjmp() □ If you use malloc() and you use longjmp() to handle a signal to jump back to some previous function, any malloc()&#39;d memory will not be free&#39;d. But, if you used alloca(), then as the functions return, they will automatically free their alloca()&#39;d memory. ○ You must y = alloca() and not func(x, alloca(), z) § Doing so would put the allocated memory in the function parameter space of the stack frame." />
+<link rel="canonical" href="http://localhost:4000/tlpi/2023/05/22/tlpi-ch7.html" />
+<meta property="og:url" content="http://localhost:4000/tlpi/2023/05/22/tlpi-ch7.html" />
+<meta property="og:site_name" content="aljica" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2023-05-22T00:00:00+02:00" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="The Linux Programming Interface Chapter 7 Memory Allocation Summary" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"BlogPosting","dateModified":"2023-05-22T00:00:00+02:00","datePublished":"2023-05-22T00:00:00+02:00","description":"• Heap is a contiguous region in memory ○ Malloc() to allocate memory § Malloc() builds upon brk() and sbrk() □ These are called so because they change the &quot;program break&quot;, i.e. the current limit of the heap. ○ Simply adjust program break to adjust the size of the heap ○ PHYSICAL MEMORY is NOT allocated UNTIL the program tries to ACCESS the newly allocated memory • Brk(end_segment) ○ Set the program break ○ This gets rounded up to nearest page boundary, as allocation happens in pages. ○ Restrictions on max size based on multiple factors, such as location of various other memory sets (shared libaries, stack etc). • Sbrk(increment) ○ Sbrk(1) increases the heap by 1 page. ○ Its return value is the old program break; which is the START of the newly allocated page. ○ Sbrk(0) simply returns the current program break; this can also be useful. • Void Malloc(size) ○ Does not allocate memory until used ○ Maintains a list so we can free() unused memory ○ Returns pointer pointing to the newly allocated memory ○ Is on a BYTE BOUNDARY, so appropriate for any char/int/data type we wish to assign there (efficient access). • Free(pointer) ○ Adds the memory block to a &quot;free&quot; list. § Note that program break cannot simply be reduced; free&#39;d memory is usually in the middle of the heap. § Another reason is that the program will likely use that memory in the future anyway, so no need to reduce heap size. • Memalloc/free_and_sbrk.c example ○ In essence, the program break remains the same before and after free(). ○ However, if free() is used at memory regions at the top end of the heap, then the program break is actually decreased. § The reason for this is that the glibc free() function checks if free&#39;d memory is adjacent, and if it is, it groups them into one big block of free memory. □ This is to ensure that we do not have a bunch of small free sets of memory, which might not be able to satisfy a future call to malloc() depending on the size passed to malloc(). • Free() caveats ○ Upon program termination, all allocated memory is returned to the system (i.e. automatically free&#39;d). ○ It still might be good to use free even though your program will terminate (and is not a continuously running system e.g. a web server): § Makes code more readable &amp; maintainable, so you understand what memory has been free&#39;d and is thus no longer in use. § Identifying REAL memory leaks: any unfree&#39;d memory will be reported as a memory leak. • Implementation of malloc and free ○ Malloc implementation § It first checks the free list. □ If memory with the required size is available, it takes just as much as it needs and allocates it. § Else, it uses sbrk() to allocate memory; usually some multiple of the virtual memory page size, then adds it to the free list. □ Malloc can now allocate this memory from the free list. ○ Free implementation § Malloc() includes a length of block, and returns pointer as suggested by the image on the right. § Free list includes length of block, pointer to previous and next free blocks, and then the free memory. § Secure programming: □ If the length value is accidentally incremented, then the block is deallocated, but then re-allocated, then the program thinks it has 2 distinct memory blocks, but the first one actually overlaps with the adjacent one. See the image in red to the right. □ Prevention: ® Always free unused memory to avoid memory leaks in daemon/long-running processes. ® Always free memory with a pointer returned by malloc and do not modify it. ® Do not free memory twice. • Malloc debugging ○ Mtrace() and muntrace() § MALLOC_TRACE environment var should also be set § Writes log output to a file and runs scripts to interpret these logs ○ Mcheck() and mprobe() § Probes allocated memory regions; checks if your code is trying to read/write out of bounds. ○ Only use the malloc() package with debugging features in dev environment; turn them off in production (i.e. use the regular malloc package in C standard library) § This is because debugging malloc package takes more memory, slower run-time etc. ○ Other tools: Valgrind and Insure++ ○ Mallopt() § Use this function to set configuration parameters for malloc() § Such configuration parameters might be: □ How much free memory needs to exist at the top of the heap before sbrk() is called to reduce heap size. • Other heap memory allocation methods ○ Calloc(numitems, size) § Allocates memory for a set number of items that each have the same fixed size ○ Realloc(ptr, size) § Given a pointer to an existing allocated block of memory, realloc resizes that memory block to size. § Assuming the requested size is greater than the current size: □ If there is enough adjacent memory available, it is allocated. □ If the memory block being resized is at the top end of the heap, the program break is extended. □ If the memory block is in the middle of the heap and there is not enough adjacent memory available, a new memory block is allocated (either from the free list or at the top end of the heap) and all data is copied from old block to new block. ® Very CPU-intensive. Use very sparingly. ○ Memalign(size_t boundary, size_t size) § Allocates size bytes starting at an address aligned to a multiple of boundary (which must be a power of two) • Allocating memory on the stack ○ Alloca(size_t) § Allocates data on the stack □ Does this by moving the stack pointer further up § Do NOT use free() or realloc() on this data □ The data will be freed automatically when the function that called alloca() returns □ Realloc() will ruin the stack frames of subsequent function calls § Especially useful with longjmp() □ If you use malloc() and you use longjmp() to handle a signal to jump back to some previous function, any malloc()&#39;d memory will not be free&#39;d. But, if you used alloca(), then as the functions return, they will automatically free their alloca()&#39;d memory. ○ You must y = alloca() and not func(x, alloca(), z) § Doing so would put the allocated memory in the function parameter space of the stack frame.","headline":"The Linux Programming Interface Chapter 7 Memory Allocation Summary","mainEntityOfPage":{"@type":"WebPage","@id":"http://localhost:4000/tlpi/2023/05/22/tlpi-ch7.html"},"url":"http://localhost:4000/tlpi/2023/05/22/tlpi-ch7.html"}</script>
+<!-- End Jekyll SEO tag -->
+<link rel="stylesheet" href="/assets/main.css"><link type="application/atom+xml" rel="alternate" href="http://localhost:4000/feed.xml" title="aljica" /></head>
+<body><header class="site-header" role="banner">
+
+  <div class="wrapper"><a class="site-title" rel="author" href="/">aljica</a><nav class="site-nav">
+        <input type="checkbox" id="nav-trigger" class="nav-trigger" />
+        <label for="nav-trigger">
+          <span class="menu-icon">
+            <svg viewBox="0 0 18 15" width="18px" height="15px">
+              <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.483,1.484-1.483h15.032C17.335,12.031,18,12.695,18,13.516L18,13.516z"/>
+            </svg>
+          </span>
+        </label>
+
+        <div class="trigger"><a class="page-link" href="/architecture/">Architecture</a><a class="page-link" href="/linux/">Linux</a><a class="page-link" href="/posts/">Posts</a><a class="page-link" href="/security/">Security</a><a class="page-link" href="/summary/">Summaries</a></div>
+      </nav></div>
+</header>
+<main class="page-content" aria-label="Content">
+      <div class="wrapper">
+        <article class="post h-entry" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title p-name" itemprop="name headline">The Linux Programming Interface Chapter 7 Memory Allocation Summary</h1>
+    <p class="post-meta">
+      <time class="dt-published" datetime="2023-05-22T00:00:00+02:00" itemprop="datePublished">May 22, 2023
+      </time></p>
+  </header>
+
+  <div class="post-content e-content" itemprop="articleBody">
+    <p><img src="/docs/assets/images/tlpi-ch7/tlpi-ch7-1.jpg" alt="Image" /></p>
+
+<p><img src="/docs/assets/images/tlpi-ch7/tlpi-ch7-2.jpg" alt="Image" /></p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>• Heap is a contiguous region in memory
+	○ Malloc() to allocate memory
+		§ Malloc() builds upon brk() and sbrk()
+			□ These are called so because they change the "program break", i.e. the current limit of the heap.
+	○ Simply adjust program break to adjust the size of the heap
+	○ PHYSICAL MEMORY is NOT allocated UNTIL the program tries to ACCESS the newly allocated memory
+• Brk(end_segment)
+	○ Set the program break
+	○ This gets rounded up to nearest page boundary, as allocation happens in pages.
+	○ Restrictions on max size based on multiple factors, such as location of various other memory sets (shared libaries, stack etc).
+• Sbrk(increment)
+	○ Sbrk(1) increases the heap by 1 page.
+	○ Its return value is the old program break; which is the START of the newly allocated page.
+	○ Sbrk(0) simply returns the current program break; this can also be useful.
+• Void Malloc(size)
+	○ Does not allocate memory until used
+	○ Maintains a list so we can free() unused memory
+	○ Returns pointer pointing to the newly allocated memory
+	○ Is on a BYTE BOUNDARY, so appropriate for any char/int/data type we wish to assign there (efficient access).
+• Free(pointer)
+	○ Adds the memory block to a "free" list.
+		§ Note that program break cannot simply be reduced; free'd memory is usually in the middle of the heap.
+		§ Another reason is that the program will likely use that memory in the future anyway, so no need to reduce heap size.
+• Memalloc/free_and_sbrk.c example
+	○ In essence, the program break remains the same before and after free().
+	○ However, if free() is used at memory regions at the top end of the heap, then the program break is actually decreased.
+		§ The reason for this is that the glibc free() function checks if free'd memory is adjacent, and if it is, it groups them into one big block of free memory.
+			□ This is to ensure that we do not have a bunch of small free sets of memory, which might not be able to satisfy a future call to malloc() depending on the size passed to malloc().
+• Free() caveats
+	○ Upon program termination, all allocated memory is returned to the system (i.e. automatically free'd).
+	○ It still might be good to use free even though your program will terminate (and is not a continuously running system e.g. a web server):
+		§ Makes code more readable &amp; maintainable, so you understand what memory has been free'd and is thus no longer in use.
+		§ Identifying REAL memory leaks: any unfree'd memory will be reported as a memory leak.
+• Implementation of malloc and free
+	○ Malloc implementation
+		§ It first checks the free list.
+			□ If memory with the required size is available, it takes just as much as it needs and allocates it.
+		§ Else, it uses sbrk() to allocate memory; usually some multiple of the virtual memory page size, then adds it to the free list.
+			□ Malloc can now allocate this memory from the free list.
+	○ Free implementation
+		§ Malloc() includes a length of block, and returns pointer as suggested by the image on the right.
+		§ Free list includes length of block, pointer to previous and next free blocks, and then the free memory.
+		§ Secure programming:
+			□ If the length value is accidentally incremented, then the block is deallocated, but then re-allocated, then the program thinks it has 2 distinct memory blocks, but the first one actually overlaps with the adjacent one. See the image in red to the right.
+			□ Prevention:
+				® Always free unused memory to avoid memory leaks in daemon/long-running processes.
+				® Always free memory with a pointer returned by malloc and do not modify it.
+				® Do not free memory twice.
+• Malloc debugging
+	○ Mtrace() and muntrace()
+		§ MALLOC_TRACE environment var should also be set
+		§ Writes log output to a file and runs scripts to interpret these logs
+	○ Mcheck() and mprobe()
+		§ Probes allocated memory regions; checks if your code is trying to read/write out of bounds.
+	○ Only use the malloc() package with debugging features in dev environment; turn them off in production (i.e. use the regular malloc package in C standard library)
+		§ This is because debugging malloc package takes more memory, slower run-time etc.
+	○ Other tools: Valgrind and Insure++
+	○ Mallopt()
+		§ Use this function to set configuration parameters for malloc()
+		§ Such configuration parameters might be:
+			□ How much free memory needs to exist at the top of the heap before sbrk() is called to reduce heap size.
+• Other heap memory allocation methods
+	○ Calloc(numitems, size)
+		§ Allocates memory for a set number of items that each have the same fixed size
+	○ Realloc(ptr, size)
+		§ Given a pointer to an existing allocated block of memory, realloc resizes that memory block to size.
+		§ Assuming the requested size is greater than the current size:
+			□ If there is enough adjacent memory available, it is allocated.
+			□ If the memory block being resized is at the top end of the heap, the program break is extended.
+			□ If the memory block is in the middle of the heap and there is not enough adjacent memory available, a new memory block is allocated (either from the free list or at the top end of the heap) and all data is copied from old block to new block.
+				® Very CPU-intensive. Use very sparingly.
+	○ Memalign(size_t boundary, size_t size)
+		§ Allocates size bytes starting at an address aligned to a multiple of boundary (which must be a power of two)
+• Allocating memory on the stack
+	○ Alloca(size_t)
+		§ Allocates data on the stack
+			□ Does this by moving the stack pointer further up
+		§ Do NOT use free() or realloc() on this data
+			□ The data will be freed automatically when the function that called alloca() returns
+			□ Realloc() will ruin the stack frames of subsequent function calls
+		§ Especially useful with longjmp()
+			□ If you use malloc() and you use longjmp() to handle a signal to jump back to some previous function, any malloc()'d memory will not be free'd. But, if you used alloca(), then as the functions return, they will automatically free their alloca()'d memory.
+	○ You must y = alloca() and not func(x, alloca(), z)
+		§ Doing so would put the allocated memory in the function parameter space of the stack frame.
+</code></pre></div></div>
+
+<p><img src="/docs/assets/images/tlpi-ch7/tlpi-ch7-3.jpg" alt="Image" /></p>
+
+<p><img src="/docs/assets/images/tlpi-ch7/tlpi-ch7-4.png" alt="Image" /></p>
+
+  </div><a class="u-url" href="/tlpi/2023/05/22/tlpi-ch7.html" hidden></a>
+</article>
+
+      </div>
+    </main><footer class="site-footer h-card">
+  <data class="u-url" href="/"></data>
+
+  <div class="wrapper">
+
+    <h2 class="footer-heading">aljica</h2>
+
+    <div class="footer-col-wrapper">
+      <div class="footer-col footer-col-1">
+        <ul class="contact-list">
+          <li class="p-name">aljica</li><li><a class="u-email" href="mailto:aljica@kth.se">aljica@kth.se</a></li></ul>
+      </div>
+
+      <div class="footer-col footer-col-2"><ul class="social-media-list"><li><a href="https://github.com/aljica"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#github"></use></svg> <span class="username">aljica</span></a></li></ul>
+</div>
+
+      <div class="footer-col footer-col-3">
+        <p></p>
+      </div>
+    </div>
+
+  </div>
+
+</footer>
+</body>
+
+</html>

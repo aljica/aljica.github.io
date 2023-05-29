@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1"><!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>The Linux Programming Interface Chapter 8 Users and Groups Summary | aljica</title>
+<meta name="generator" content="Jekyll v3.8.6" />
+<meta property="og:title" content="The Linux Programming Interface Chapter 8 Users and Groups Summary" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Users and Groups • /etc/passwd ○ Login name:encrypted password: ○ Login name § There&#39;s both a UID and a user name. ○ Encrypted password: § 13 char encrypted password. § If shadow passwords are enabled; this is just an &quot;x&quot; □ Encrypted password stored in shadow file § If empty; no password required for this account. ○ Numeric ID for user § 0 = root § Max number of IDs is 2^32 in Linux 2.4 and later § Can have multiple users with the same ID but different username:password combinations □ Can have different file permissions for the different users ○ Group ID ○ Comment § Information about the user ○ Home directory § Directory the user will be placed in after logging in ○ Login shell § The program that will take over upon login; e.g. /bin/bash ○ On networked systems, password information might be stored on remote servers (e.g. with LDAP use) § But on stand-alone systems, password info is in /etc/passwd. • /etc/shadow ○ Only privileged programs have access to this ○ Stores other security info beyond just encrypted passwords • /etc/group ○ Group ID is stored in the password entry for the user § Additional group ID&#39;s the user belongs to are stored in /etc/group □ Reason is historical: in early UNIX systems, a user could only belong to one group. Upon extending this, additional group memberships were noted in /etc/group. ○ Organization: § Group name § Encrypted password □ With multi-group memberships, passwords for groups are rarely used now. □ In a shell session, user is prompted for group password before the shell session continues for that user with that group membership. □ /etc/gshadow if shadowed passwords enabled for groups § Group ID (2^32) § User list ○ Examples: § In /etc/passwd: □ Userjohn:x:1001:100:John:/home/john:/bin/bash § In /etc/group: □ Users:x:100 □ Staff:x:101:usersarah, userjimmy, userjohn □ Teach:x:104:usersarah, userjohn § Userjohn belongs to users, staff and teach. • Retrieving user and group info ○ Getpwnam() and getpwuid() get information from the /etc/passwd file based on username or user ID. § These return a pointer to a statically allocated struct that contains the password file information for that user. □ If these are called again, the statically allocated struct is overwritten. □ You can use getpwuid_r and other similar functions that end with _r (which indicate &quot;re-entrancy&quot;), meaning you can copy the password file data to a separate buffer that you can save. ○ Getgrpnam(), getgrgid() to get group information based on name/ID. ○ UserIdFromName() etc § Conversion functions from user/group ID to name or vice versa. ○ Getpwent() § Can use this in a while loop to go through all info in the passwd file § Use endpwent() so that if another part of your code uses getpwent(), it will start from the beginning of the passwd file. § Corresponding functions for group info. ○ Getspnam() get info from shadow password file. • Password encryption and user auth ○ Application COULD have its own DB to store username:password combinations. ○ But imagine networked applications like SSH, FTP, etc § These use UNIX username:password combos ○ Checking passwords in UNIX uses a one-way hashing encryption algorithm. ○ Crypt(key, salt) § DES algorithm § Returns 13-char encrypted password • Check_password example ○ A user tries to log in by supplying their username ○ Program fetches the corresponding encrypted password from /etc/shadow (if shadowed passwords are enabled, otherwise directly from /etc/passwd) (if shadowed, the program must run with privileges) ○ Use getpass() to prompt the user for their password § Getpass() turns off terminal echoing, so no characters are shown on the screen when typing the password ○ Use crypt() to check if the supplied password is the same as the encrypted password in the shadow file. ○ Important security point: § Directly after encrypting the user-supplied password, instantly remove the unencrypted user-supplied password from memory by overwriting it, such as in the following way: □ For (p=password; p* != &#39;\0&#39;;) { *p++ = &#39;\0&#39;; }" />
+<meta property="og:description" content="Users and Groups • /etc/passwd ○ Login name:encrypted password: ○ Login name § There&#39;s both a UID and a user name. ○ Encrypted password: § 13 char encrypted password. § If shadow passwords are enabled; this is just an &quot;x&quot; □ Encrypted password stored in shadow file § If empty; no password required for this account. ○ Numeric ID for user § 0 = root § Max number of IDs is 2^32 in Linux 2.4 and later § Can have multiple users with the same ID but different username:password combinations □ Can have different file permissions for the different users ○ Group ID ○ Comment § Information about the user ○ Home directory § Directory the user will be placed in after logging in ○ Login shell § The program that will take over upon login; e.g. /bin/bash ○ On networked systems, password information might be stored on remote servers (e.g. with LDAP use) § But on stand-alone systems, password info is in /etc/passwd. • /etc/shadow ○ Only privileged programs have access to this ○ Stores other security info beyond just encrypted passwords • /etc/group ○ Group ID is stored in the password entry for the user § Additional group ID&#39;s the user belongs to are stored in /etc/group □ Reason is historical: in early UNIX systems, a user could only belong to one group. Upon extending this, additional group memberships were noted in /etc/group. ○ Organization: § Group name § Encrypted password □ With multi-group memberships, passwords for groups are rarely used now. □ In a shell session, user is prompted for group password before the shell session continues for that user with that group membership. □ /etc/gshadow if shadowed passwords enabled for groups § Group ID (2^32) § User list ○ Examples: § In /etc/passwd: □ Userjohn:x:1001:100:John:/home/john:/bin/bash § In /etc/group: □ Users:x:100 □ Staff:x:101:usersarah, userjimmy, userjohn □ Teach:x:104:usersarah, userjohn § Userjohn belongs to users, staff and teach. • Retrieving user and group info ○ Getpwnam() and getpwuid() get information from the /etc/passwd file based on username or user ID. § These return a pointer to a statically allocated struct that contains the password file information for that user. □ If these are called again, the statically allocated struct is overwritten. □ You can use getpwuid_r and other similar functions that end with _r (which indicate &quot;re-entrancy&quot;), meaning you can copy the password file data to a separate buffer that you can save. ○ Getgrpnam(), getgrgid() to get group information based on name/ID. ○ UserIdFromName() etc § Conversion functions from user/group ID to name or vice versa. ○ Getpwent() § Can use this in a while loop to go through all info in the passwd file § Use endpwent() so that if another part of your code uses getpwent(), it will start from the beginning of the passwd file. § Corresponding functions for group info. ○ Getspnam() get info from shadow password file. • Password encryption and user auth ○ Application COULD have its own DB to store username:password combinations. ○ But imagine networked applications like SSH, FTP, etc § These use UNIX username:password combos ○ Checking passwords in UNIX uses a one-way hashing encryption algorithm. ○ Crypt(key, salt) § DES algorithm § Returns 13-char encrypted password • Check_password example ○ A user tries to log in by supplying their username ○ Program fetches the corresponding encrypted password from /etc/shadow (if shadowed passwords are enabled, otherwise directly from /etc/passwd) (if shadowed, the program must run with privileges) ○ Use getpass() to prompt the user for their password § Getpass() turns off terminal echoing, so no characters are shown on the screen when typing the password ○ Use crypt() to check if the supplied password is the same as the encrypted password in the shadow file. ○ Important security point: § Directly after encrypting the user-supplied password, instantly remove the unencrypted user-supplied password from memory by overwriting it, such as in the following way: □ For (p=password; p* != &#39;\0&#39;;) { *p++ = &#39;\0&#39;; }" />
+<link rel="canonical" href="http://localhost:4000/tlpi/2023/05/22/tlpi-ch8.html" />
+<meta property="og:url" content="http://localhost:4000/tlpi/2023/05/22/tlpi-ch8.html" />
+<meta property="og:site_name" content="aljica" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2023-05-22T00:00:00+02:00" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="The Linux Programming Interface Chapter 8 Users and Groups Summary" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"BlogPosting","dateModified":"2023-05-22T00:00:00+02:00","datePublished":"2023-05-22T00:00:00+02:00","description":"Users and Groups • /etc/passwd ○ Login name:encrypted password: ○ Login name § There&#39;s both a UID and a user name. ○ Encrypted password: § 13 char encrypted password. § If shadow passwords are enabled; this is just an &quot;x&quot; □ Encrypted password stored in shadow file § If empty; no password required for this account. ○ Numeric ID for user § 0 = root § Max number of IDs is 2^32 in Linux 2.4 and later § Can have multiple users with the same ID but different username:password combinations □ Can have different file permissions for the different users ○ Group ID ○ Comment § Information about the user ○ Home directory § Directory the user will be placed in after logging in ○ Login shell § The program that will take over upon login; e.g. /bin/bash ○ On networked systems, password information might be stored on remote servers (e.g. with LDAP use) § But on stand-alone systems, password info is in /etc/passwd. • /etc/shadow ○ Only privileged programs have access to this ○ Stores other security info beyond just encrypted passwords • /etc/group ○ Group ID is stored in the password entry for the user § Additional group ID&#39;s the user belongs to are stored in /etc/group □ Reason is historical: in early UNIX systems, a user could only belong to one group. Upon extending this, additional group memberships were noted in /etc/group. ○ Organization: § Group name § Encrypted password □ With multi-group memberships, passwords for groups are rarely used now. □ In a shell session, user is prompted for group password before the shell session continues for that user with that group membership. □ /etc/gshadow if shadowed passwords enabled for groups § Group ID (2^32) § User list ○ Examples: § In /etc/passwd: □ Userjohn:x:1001:100:John:/home/john:/bin/bash § In /etc/group: □ Users:x:100 □ Staff:x:101:usersarah, userjimmy, userjohn □ Teach:x:104:usersarah, userjohn § Userjohn belongs to users, staff and teach. • Retrieving user and group info ○ Getpwnam() and getpwuid() get information from the /etc/passwd file based on username or user ID. § These return a pointer to a statically allocated struct that contains the password file information for that user. □ If these are called again, the statically allocated struct is overwritten. □ You can use getpwuid_r and other similar functions that end with _r (which indicate &quot;re-entrancy&quot;), meaning you can copy the password file data to a separate buffer that you can save. ○ Getgrpnam(), getgrgid() to get group information based on name/ID. ○ UserIdFromName() etc § Conversion functions from user/group ID to name or vice versa. ○ Getpwent() § Can use this in a while loop to go through all info in the passwd file § Use endpwent() so that if another part of your code uses getpwent(), it will start from the beginning of the passwd file. § Corresponding functions for group info. ○ Getspnam() get info from shadow password file. • Password encryption and user auth ○ Application COULD have its own DB to store username:password combinations. ○ But imagine networked applications like SSH, FTP, etc § These use UNIX username:password combos ○ Checking passwords in UNIX uses a one-way hashing encryption algorithm. ○ Crypt(key, salt) § DES algorithm § Returns 13-char encrypted password • Check_password example ○ A user tries to log in by supplying their username ○ Program fetches the corresponding encrypted password from /etc/shadow (if shadowed passwords are enabled, otherwise directly from /etc/passwd) (if shadowed, the program must run with privileges) ○ Use getpass() to prompt the user for their password § Getpass() turns off terminal echoing, so no characters are shown on the screen when typing the password ○ Use crypt() to check if the supplied password is the same as the encrypted password in the shadow file. ○ Important security point: § Directly after encrypting the user-supplied password, instantly remove the unencrypted user-supplied password from memory by overwriting it, such as in the following way: □ For (p=password; p* != &#39;\\0&#39;;) { *p++ = &#39;\\0&#39;; }","headline":"The Linux Programming Interface Chapter 8 Users and Groups Summary","mainEntityOfPage":{"@type":"WebPage","@id":"http://localhost:4000/tlpi/2023/05/22/tlpi-ch8.html"},"url":"http://localhost:4000/tlpi/2023/05/22/tlpi-ch8.html"}</script>
+<!-- End Jekyll SEO tag -->
+<link rel="stylesheet" href="/assets/main.css"><link type="application/atom+xml" rel="alternate" href="http://localhost:4000/feed.xml" title="aljica" /></head>
+<body><header class="site-header" role="banner">
+
+  <div class="wrapper"><a class="site-title" rel="author" href="/">aljica</a><nav class="site-nav">
+        <input type="checkbox" id="nav-trigger" class="nav-trigger" />
+        <label for="nav-trigger">
+          <span class="menu-icon">
+            <svg viewBox="0 0 18 15" width="18px" height="15px">
+              <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.483,1.484-1.483h15.032C17.335,12.031,18,12.695,18,13.516L18,13.516z"/>
+            </svg>
+          </span>
+        </label>
+
+        <div class="trigger"><a class="page-link" href="/architecture/">Architecture</a><a class="page-link" href="/linux/">Linux</a><a class="page-link" href="/posts/">Posts</a><a class="page-link" href="/security/">Security</a><a class="page-link" href="/summary/">Summaries</a></div>
+      </nav></div>
+</header>
+<main class="page-content" aria-label="Content">
+      <div class="wrapper">
+        <article class="post h-entry" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title p-name" itemprop="name headline">The Linux Programming Interface Chapter 8 Users and Groups Summary</h1>
+    <p class="post-meta">
+      <time class="dt-published" datetime="2023-05-22T00:00:00+02:00" itemprop="datePublished">May 22, 2023
+      </time></p>
+  </header>
+
+  <div class="post-content e-content" itemprop="articleBody">
+    <p>Users and Groups</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>• /etc/passwd
+	○ Login name:encrypted password:
+	○ Login name
+		§ There's both a UID and a user name.
+	○ Encrypted password:
+		§ 13 char encrypted password.
+		§ If shadow passwords are enabled; this is just an "x"
+			□ Encrypted password stored in shadow file
+		§ If empty; no password required for this account.
+	○ Numeric ID for user
+		§ 0 = root
+		§ Max number of IDs is 2^32 in Linux 2.4 and later
+		§ Can have multiple users with the same ID but different username:password combinations
+			□ Can have different file permissions for the different users
+	○ Group ID
+	○ Comment
+		§ Information about the user
+	○ Home directory
+		§ Directory the user will be placed in after logging in
+	○ Login shell
+		§ The program that will take over upon login; e.g. /bin/bash
+	○ On networked systems, password information might be stored on remote servers (e.g. with LDAP use)
+		§ But on stand-alone systems, password info is in /etc/passwd.
+• /etc/shadow
+	○ Only privileged programs have access to this
+	○ Stores other security info beyond just encrypted passwords
+• /etc/group
+	○ Group ID is stored in the password entry for the user
+		§ Additional group ID's the user belongs to are stored in /etc/group
+			□ Reason is historical: in early UNIX systems, a user could only belong to one group. Upon extending this, additional group memberships were noted in /etc/group.
+	○ Organization:
+		§ Group name
+		§ Encrypted password
+			□ With multi-group memberships, passwords for groups are rarely used now.
+			□ In a shell session, user is prompted for group password before the shell session continues for that user with that group membership.
+			□ /etc/gshadow if shadowed passwords enabled for groups
+		§ Group ID (2^32)
+		§ User list
+	○ Examples:
+		§ In /etc/passwd:
+			□ Userjohn:x:1001:100:John:/home/john:/bin/bash
+		§ In /etc/group:
+			□ Users:x:100
+			□ Staff:x:101:usersarah, userjimmy, userjohn
+			□ Teach:x:104:usersarah, userjohn
+		§ Userjohn belongs to users, staff and teach.
+• Retrieving user and group info
+	○ Getpwnam() and getpwuid() get information from the /etc/passwd file based on username or user ID.
+		§ These return a pointer to a statically allocated struct that contains the password file information for that user.
+			□ If these are called again, the statically allocated struct is overwritten.
+			□ You can use getpwuid_r and other similar functions that end with _r (which indicate "re-entrancy"), meaning you can copy the password file data to a separate buffer that you can save.
+	○ Getgrpnam(), getgrgid() to get group information based on name/ID.
+	○ UserIdFromName() etc
+		§ Conversion functions from user/group ID to name or vice versa.
+	○ Getpwent()
+		§ Can use this in a while loop to go through all info in the passwd file
+		§ Use endpwent() so that if another part of your code uses getpwent(), it will start from the beginning of the passwd file.
+		§ Corresponding functions for group info.
+	○ Getspnam() get info from shadow password file.
+• Password encryption and user auth
+	○ Application COULD have its own DB to store username:password combinations.
+	○ But imagine networked applications like SSH, FTP, etc
+		§ These use UNIX username:password combos
+	○ Checking passwords in UNIX uses a one-way hashing encryption algorithm.
+	○ Crypt(key, salt)
+		§ DES algorithm
+		§ Returns 13-char encrypted password
+• Check_password example
+	○ A user tries to log in by supplying their username
+	○ Program fetches the corresponding encrypted password from /etc/shadow (if shadowed passwords are enabled, otherwise directly from /etc/passwd) (if shadowed, the program must run with privileges)
+	○ Use getpass() to prompt the user for their password
+		§ Getpass() turns off terminal echoing, so no characters are shown on the screen when typing the password
+	○ Use crypt() to check if the supplied password is the same as the encrypted password in the shadow file.
+	○ Important security point:
+		§ Directly after encrypting the user-supplied password, instantly remove the unencrypted user-supplied password from memory by overwriting it, such as in the following way:
+			□ For (p=password; p* != '\0';) {
+*p++ = '\0'; }
+</code></pre></div></div>
+
+
+  </div><a class="u-url" href="/tlpi/2023/05/22/tlpi-ch8.html" hidden></a>
+</article>
+
+      </div>
+    </main><footer class="site-footer h-card">
+  <data class="u-url" href="/"></data>
+
+  <div class="wrapper">
+
+    <h2 class="footer-heading">aljica</h2>
+
+    <div class="footer-col-wrapper">
+      <div class="footer-col footer-col-1">
+        <ul class="contact-list">
+          <li class="p-name">aljica</li><li><a class="u-email" href="mailto:aljica@kth.se">aljica@kth.se</a></li></ul>
+      </div>
+
+      <div class="footer-col footer-col-2"><ul class="social-media-list"><li><a href="https://github.com/aljica"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#github"></use></svg> <span class="username">aljica</span></a></li></ul>
+</div>
+
+      <div class="footer-col footer-col-3">
+        <p></p>
+      </div>
+    </div>
+
+  </div>
+
+</footer>
+</body>
+
+</html>

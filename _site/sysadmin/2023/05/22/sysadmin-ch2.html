@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1"><!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Chapter 2 Booting and System Management Daemon | aljica</title>
+<meta name="generator" content="Jekyll v3.8.6" />
+<meta property="og:title" content="Chapter 2 Booting and System Management Daemon" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="2.6 SYS MANAGEMENT DAEMONS • Kernel gets loaded into memory ○ As part of the Kernel&#39;s implementation, &quot;spontaneous&quot; processes also get run § These have low PIDs ○ Systemd has PID 1 - the initialization process for the kernel. • Init responsibilities: ○ Init can run in 3 different modes: 1. Single-user mode. Minimal setup. Basic filesystem and root shell. 2. Multi-user mode. Full setup. Several users, GUI, network services, etc. 3. Server mode. Also just shell, but loads services relevant for servers. ○ Init does the following: § Cleans up old files in /tmp. § Configures packet filters, network services, etc. § Starts/stops processes. § Setting time zone, computer name. § Mounting file systems, checking disks. • Implementations of Init: ○ FreeBSD uses init ○ Linux distros use systemd ○ MacOS uses launchd • Traditional init: ○ Has some shortcomings: § Init is not powerful enough to run things on its own. § It has a configuration file that points to shell scripts for selecting run level (i.e. which mode to run in; single-user, multi-user or server mode) § These shell scripts in turn point to additional scripts for starting the relevant services and daemones for a given run level/mode. • Systemd vs the world ○ Systemd is a much larger &quot;monolithic&quot; component than init. ○ Systemd has control over things like the network daemons/services networkd, journald, and logind. § Arguments against systemd include that it&#39;s bad for security that systemd has control over so many areas of the system. § There are many more arguments at systemd.org. E.g. that it breeds complexity. § It imposed many new standards and guidelines on the Linux kernel, which could also be a reason people dislike it. • Inits judged and assigned their proper punishments ○ Systemd has mostly taken over, Red Hat, Ubuntu, Debian ○ Init can still be useful for small footprint Linux installations 2.7 SYSTEMD IN DETAIL • It does advanced process management • It&#39;s a collection of many things; daemons, libraries, kernel components, etc. • Units and unit files ○ Systemd manages &quot;UNITS&quot; ○ A unit can be a: service, socket, mount point, disk, resource management slice, and many other things. ○ A UNIT FILE tells systemd where the entity that systemd manages (the unit) has its executable file, how systemd can start/stop its services and which services it depends on. ○ /etc/rsync.conf - unit file for rsync daemon which mirrors filesystems. ○ Unit files typically go in /usr/lib/systemd/system/, but do not modify these. ○ Your modified unit files can go into /etc/systemd/system/ ○ /etc unit files have highest prio. ○ File suffixes: .service or .timer. Some declarations in the files can only appear for certain types of units, e.g. SERVICE for services etc. • Systemctl: manage systemd ○ Systemctl --list-units --type=service ○ Systemctl --list-unit-files [pattern] ○ Various ways of working with systemd on the cmdline. • Unit statuses ○ Sudo systemctl status &lt;service-name&gt; ○ Use the -l option to get full log outputs and not condensed ones which are mostly unreadable. ○ &quot;linked&quot; status § The unit file is not part of systemd&#39;s system directory. Instead, it&#39;s a symlink to the unit file which lives elsewhere. § Disabling a linked unit file deletes the symlink and all references to it. ○ &quot;masked&quot; status § Systemctl is aware of the unit but is not allowed to run it or act on any of its configuration. • Targets ○ You can set which run-level/operating mode you want to run in. ○ Sudo systemctl set-default graphical.target § This will run a full GUI with networking and all other user features § You can also choose single-user mode or recovery mode, etc. ○ You can also run sudo systemctl isolate recovery.target § Isolate deactivates all components not needed for recovery and only activates those required for recovery ○ Sudo systemctl list-units --type=target § See a list of all available targets/operating modes/run-levels • Dependencies among units ○ D-Bus interprocess communication/network ports § Systemd knows which services would use various network ports and IPC connection points § IF a client shows up at that port/point, only then would systemd start the corresponding service. □ Otherwise, the service remains dormant. ○ In the unit files, you can specify which other services a given unit might depend on, might &quot;Wants&quot; i.e. prefer to run in conjunction with, etc. See the list on the right. ○ Systemctl add-wants multi-user.target my.local.service § This ensures that when multi-user.target boots, my.local.service will be started as well. § This adds a DEPENDENCY for multi-user.target on my.local.service. • Execution Order ○ The execution order of services is handled by a separate systemd component and is not necessarily determined by the various dependency clauses such as &quot;Wants&quot;, &quot;Requires&quot; etc. • A more complex unit file example ○ Type forking means the service should run as a daemon in the background ○ SIGQUIT is equivalent to: § ExecStop=/bin/kill -s HUP $MAINPID • Local services and customizations ○ Go to /usr/lib/systemd/system/ § Lists user-space services&#39; unit files. § Quite easy to setup a home-made service&#39;s unit file here. ○ If you wish to modify existing configuration: § Mkdir /usr/lib/systemd/system/&lt;service-name&gt;.d = e.g. nginx.d § Inside nginx.d, you can put a file called overload.conf where you can add your new configuration. □ Systemd meshes the actual unit file with the .conf file. The .conf file takes priority if e.g. same values are defined. § You can also do this with systemctl edit nginx.service. (then you still must run systemctl restart nginx.service for changes to take effect). § To set the [INSTALL] section of the unit file, just use systemctl add-wants, systemctl add-requires. • Service and startup control caveats * Red Hat /etc/sysconfig * iptables-config, selinux, console/ directory for keymappings, and more. * network-scripts/ifcfg-eth0 contains configuration information for the eth0 network interface. * iptables-config is only for loading additional iptables modules; not to change iptables config. That&#39;s done elsewhere. * Systemd logging * With the advent of the cloud, diagnostic information was easily lost. Cannot just stare at the terminal to see error output! * journald daemon collects system messages from early boot time to final shutdown. * You can see the logs with journalctl. * rsyslog can forward logs to a remote syslog server or turn them into more ordinary log file formats. * /etc/systemd/journald.conf =&gt; here you can set configuration options * For example, you might set Storage=persistent, which will save logs across reboots/sessions. 2.8 FreeBSD Init and startup scripts Startup process for FreeBSD: init =&gt; /etc/rc (wrapper which triggers other startup scripts…) =&gt; config files: /etc/defaults/config, /etc/rc.conf, /etc/rc.conf.local =&gt; /usr/local/etc/rc.d and /etc/rc.d. Startup scripts are run in an order that can be seen with rcorder command. 2.9 Reboot and shutdown procedures halt and reboot commands Technically the same; reboot prepares AND shuts the system down; halt prepares but does not actually shut it down (unless you do halt -p). shutdown does not differ at all technically from reboot and halt. 2.10 Stratagems for a non booting system 3 things to do: Don’t debug; restore to a previous good state. Get a recovery mode shell, and investigate interactively. Load a separate (live) OS image and debug the primary one from there. Single-user mode Recovery mode, minimal startup, no network, just basic initialization. Red Hat tries to mount file systems as well. This might be problematic if the file system is corrupt. Control this with kernel parameters; systemd.unit=emergency.target (from GRUB) will boot without mounting file systems. Enter single-user mode on systems that use systemd/GRUB: append: systemd.unit=rescue.target to the end of the kernel parameters (press e on the GRUB screen for the kernel you wish to boot). Recovery for cloud systems Reset to known good state! You can, if necessary, launch for example a separate VM/EC2 instance, unmount the disk from the problem VM/EC2 and attach it to the new VM/EC2. From the new VM/EC2, which runs another primary, good state OS, you can mount the problem file system and try to fix it from there." />
+<meta property="og:description" content="2.6 SYS MANAGEMENT DAEMONS • Kernel gets loaded into memory ○ As part of the Kernel&#39;s implementation, &quot;spontaneous&quot; processes also get run § These have low PIDs ○ Systemd has PID 1 - the initialization process for the kernel. • Init responsibilities: ○ Init can run in 3 different modes: 1. Single-user mode. Minimal setup. Basic filesystem and root shell. 2. Multi-user mode. Full setup. Several users, GUI, network services, etc. 3. Server mode. Also just shell, but loads services relevant for servers. ○ Init does the following: § Cleans up old files in /tmp. § Configures packet filters, network services, etc. § Starts/stops processes. § Setting time zone, computer name. § Mounting file systems, checking disks. • Implementations of Init: ○ FreeBSD uses init ○ Linux distros use systemd ○ MacOS uses launchd • Traditional init: ○ Has some shortcomings: § Init is not powerful enough to run things on its own. § It has a configuration file that points to shell scripts for selecting run level (i.e. which mode to run in; single-user, multi-user or server mode) § These shell scripts in turn point to additional scripts for starting the relevant services and daemones for a given run level/mode. • Systemd vs the world ○ Systemd is a much larger &quot;monolithic&quot; component than init. ○ Systemd has control over things like the network daemons/services networkd, journald, and logind. § Arguments against systemd include that it&#39;s bad for security that systemd has control over so many areas of the system. § There are many more arguments at systemd.org. E.g. that it breeds complexity. § It imposed many new standards and guidelines on the Linux kernel, which could also be a reason people dislike it. • Inits judged and assigned their proper punishments ○ Systemd has mostly taken over, Red Hat, Ubuntu, Debian ○ Init can still be useful for small footprint Linux installations 2.7 SYSTEMD IN DETAIL • It does advanced process management • It&#39;s a collection of many things; daemons, libraries, kernel components, etc. • Units and unit files ○ Systemd manages &quot;UNITS&quot; ○ A unit can be a: service, socket, mount point, disk, resource management slice, and many other things. ○ A UNIT FILE tells systemd where the entity that systemd manages (the unit) has its executable file, how systemd can start/stop its services and which services it depends on. ○ /etc/rsync.conf - unit file for rsync daemon which mirrors filesystems. ○ Unit files typically go in /usr/lib/systemd/system/, but do not modify these. ○ Your modified unit files can go into /etc/systemd/system/ ○ /etc unit files have highest prio. ○ File suffixes: .service or .timer. Some declarations in the files can only appear for certain types of units, e.g. SERVICE for services etc. • Systemctl: manage systemd ○ Systemctl --list-units --type=service ○ Systemctl --list-unit-files [pattern] ○ Various ways of working with systemd on the cmdline. • Unit statuses ○ Sudo systemctl status &lt;service-name&gt; ○ Use the -l option to get full log outputs and not condensed ones which are mostly unreadable. ○ &quot;linked&quot; status § The unit file is not part of systemd&#39;s system directory. Instead, it&#39;s a symlink to the unit file which lives elsewhere. § Disabling a linked unit file deletes the symlink and all references to it. ○ &quot;masked&quot; status § Systemctl is aware of the unit but is not allowed to run it or act on any of its configuration. • Targets ○ You can set which run-level/operating mode you want to run in. ○ Sudo systemctl set-default graphical.target § This will run a full GUI with networking and all other user features § You can also choose single-user mode or recovery mode, etc. ○ You can also run sudo systemctl isolate recovery.target § Isolate deactivates all components not needed for recovery and only activates those required for recovery ○ Sudo systemctl list-units --type=target § See a list of all available targets/operating modes/run-levels • Dependencies among units ○ D-Bus interprocess communication/network ports § Systemd knows which services would use various network ports and IPC connection points § IF a client shows up at that port/point, only then would systemd start the corresponding service. □ Otherwise, the service remains dormant. ○ In the unit files, you can specify which other services a given unit might depend on, might &quot;Wants&quot; i.e. prefer to run in conjunction with, etc. See the list on the right. ○ Systemctl add-wants multi-user.target my.local.service § This ensures that when multi-user.target boots, my.local.service will be started as well. § This adds a DEPENDENCY for multi-user.target on my.local.service. • Execution Order ○ The execution order of services is handled by a separate systemd component and is not necessarily determined by the various dependency clauses such as &quot;Wants&quot;, &quot;Requires&quot; etc. • A more complex unit file example ○ Type forking means the service should run as a daemon in the background ○ SIGQUIT is equivalent to: § ExecStop=/bin/kill -s HUP $MAINPID • Local services and customizations ○ Go to /usr/lib/systemd/system/ § Lists user-space services&#39; unit files. § Quite easy to setup a home-made service&#39;s unit file here. ○ If you wish to modify existing configuration: § Mkdir /usr/lib/systemd/system/&lt;service-name&gt;.d = e.g. nginx.d § Inside nginx.d, you can put a file called overload.conf where you can add your new configuration. □ Systemd meshes the actual unit file with the .conf file. The .conf file takes priority if e.g. same values are defined. § You can also do this with systemctl edit nginx.service. (then you still must run systemctl restart nginx.service for changes to take effect). § To set the [INSTALL] section of the unit file, just use systemctl add-wants, systemctl add-requires. • Service and startup control caveats * Red Hat /etc/sysconfig * iptables-config, selinux, console/ directory for keymappings, and more. * network-scripts/ifcfg-eth0 contains configuration information for the eth0 network interface. * iptables-config is only for loading additional iptables modules; not to change iptables config. That&#39;s done elsewhere. * Systemd logging * With the advent of the cloud, diagnostic information was easily lost. Cannot just stare at the terminal to see error output! * journald daemon collects system messages from early boot time to final shutdown. * You can see the logs with journalctl. * rsyslog can forward logs to a remote syslog server or turn them into more ordinary log file formats. * /etc/systemd/journald.conf =&gt; here you can set configuration options * For example, you might set Storage=persistent, which will save logs across reboots/sessions. 2.8 FreeBSD Init and startup scripts Startup process for FreeBSD: init =&gt; /etc/rc (wrapper which triggers other startup scripts…) =&gt; config files: /etc/defaults/config, /etc/rc.conf, /etc/rc.conf.local =&gt; /usr/local/etc/rc.d and /etc/rc.d. Startup scripts are run in an order that can be seen with rcorder command. 2.9 Reboot and shutdown procedures halt and reboot commands Technically the same; reboot prepares AND shuts the system down; halt prepares but does not actually shut it down (unless you do halt -p). shutdown does not differ at all technically from reboot and halt. 2.10 Stratagems for a non booting system 3 things to do: Don’t debug; restore to a previous good state. Get a recovery mode shell, and investigate interactively. Load a separate (live) OS image and debug the primary one from there. Single-user mode Recovery mode, minimal startup, no network, just basic initialization. Red Hat tries to mount file systems as well. This might be problematic if the file system is corrupt. Control this with kernel parameters; systemd.unit=emergency.target (from GRUB) will boot without mounting file systems. Enter single-user mode on systems that use systemd/GRUB: append: systemd.unit=rescue.target to the end of the kernel parameters (press e on the GRUB screen for the kernel you wish to boot). Recovery for cloud systems Reset to known good state! You can, if necessary, launch for example a separate VM/EC2 instance, unmount the disk from the problem VM/EC2 and attach it to the new VM/EC2. From the new VM/EC2, which runs another primary, good state OS, you can mount the problem file system and try to fix it from there." />
+<link rel="canonical" href="http://localhost:4000/sysadmin/2023/05/22/sysadmin-ch2.html" />
+<meta property="og:url" content="http://localhost:4000/sysadmin/2023/05/22/sysadmin-ch2.html" />
+<meta property="og:site_name" content="aljica" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2023-05-22T00:00:00+02:00" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Chapter 2 Booting and System Management Daemon" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"BlogPosting","dateModified":"2023-05-22T00:00:00+02:00","datePublished":"2023-05-22T00:00:00+02:00","description":"2.6 SYS MANAGEMENT DAEMONS • Kernel gets loaded into memory ○ As part of the Kernel&#39;s implementation, &quot;spontaneous&quot; processes also get run § These have low PIDs ○ Systemd has PID 1 - the initialization process for the kernel. • Init responsibilities: ○ Init can run in 3 different modes: 1. Single-user mode. Minimal setup. Basic filesystem and root shell. 2. Multi-user mode. Full setup. Several users, GUI, network services, etc. 3. Server mode. Also just shell, but loads services relevant for servers. ○ Init does the following: § Cleans up old files in /tmp. § Configures packet filters, network services, etc. § Starts/stops processes. § Setting time zone, computer name. § Mounting file systems, checking disks. • Implementations of Init: ○ FreeBSD uses init ○ Linux distros use systemd ○ MacOS uses launchd • Traditional init: ○ Has some shortcomings: § Init is not powerful enough to run things on its own. § It has a configuration file that points to shell scripts for selecting run level (i.e. which mode to run in; single-user, multi-user or server mode) § These shell scripts in turn point to additional scripts for starting the relevant services and daemones for a given run level/mode. • Systemd vs the world ○ Systemd is a much larger &quot;monolithic&quot; component than init. ○ Systemd has control over things like the network daemons/services networkd, journald, and logind. § Arguments against systemd include that it&#39;s bad for security that systemd has control over so many areas of the system. § There are many more arguments at systemd.org. E.g. that it breeds complexity. § It imposed many new standards and guidelines on the Linux kernel, which could also be a reason people dislike it. • Inits judged and assigned their proper punishments ○ Systemd has mostly taken over, Red Hat, Ubuntu, Debian ○ Init can still be useful for small footprint Linux installations 2.7 SYSTEMD IN DETAIL • It does advanced process management • It&#39;s a collection of many things; daemons, libraries, kernel components, etc. • Units and unit files ○ Systemd manages &quot;UNITS&quot; ○ A unit can be a: service, socket, mount point, disk, resource management slice, and many other things. ○ A UNIT FILE tells systemd where the entity that systemd manages (the unit) has its executable file, how systemd can start/stop its services and which services it depends on. ○ /etc/rsync.conf - unit file for rsync daemon which mirrors filesystems. ○ Unit files typically go in /usr/lib/systemd/system/, but do not modify these. ○ Your modified unit files can go into /etc/systemd/system/ ○ /etc unit files have highest prio. ○ File suffixes: .service or .timer. Some declarations in the files can only appear for certain types of units, e.g. SERVICE for services etc. • Systemctl: manage systemd ○ Systemctl --list-units --type=service ○ Systemctl --list-unit-files [pattern] ○ Various ways of working with systemd on the cmdline. • Unit statuses ○ Sudo systemctl status &lt;service-name&gt; ○ Use the -l option to get full log outputs and not condensed ones which are mostly unreadable. ○ &quot;linked&quot; status § The unit file is not part of systemd&#39;s system directory. Instead, it&#39;s a symlink to the unit file which lives elsewhere. § Disabling a linked unit file deletes the symlink and all references to it. ○ &quot;masked&quot; status § Systemctl is aware of the unit but is not allowed to run it or act on any of its configuration. • Targets ○ You can set which run-level/operating mode you want to run in. ○ Sudo systemctl set-default graphical.target § This will run a full GUI with networking and all other user features § You can also choose single-user mode or recovery mode, etc. ○ You can also run sudo systemctl isolate recovery.target § Isolate deactivates all components not needed for recovery and only activates those required for recovery ○ Sudo systemctl list-units --type=target § See a list of all available targets/operating modes/run-levels • Dependencies among units ○ D-Bus interprocess communication/network ports § Systemd knows which services would use various network ports and IPC connection points § IF a client shows up at that port/point, only then would systemd start the corresponding service. □ Otherwise, the service remains dormant. ○ In the unit files, you can specify which other services a given unit might depend on, might &quot;Wants&quot; i.e. prefer to run in conjunction with, etc. See the list on the right. ○ Systemctl add-wants multi-user.target my.local.service § This ensures that when multi-user.target boots, my.local.service will be started as well. § This adds a DEPENDENCY for multi-user.target on my.local.service. • Execution Order ○ The execution order of services is handled by a separate systemd component and is not necessarily determined by the various dependency clauses such as &quot;Wants&quot;, &quot;Requires&quot; etc. • A more complex unit file example ○ Type forking means the service should run as a daemon in the background ○ SIGQUIT is equivalent to: § ExecStop=/bin/kill -s HUP $MAINPID • Local services and customizations ○ Go to /usr/lib/systemd/system/ § Lists user-space services&#39; unit files. § Quite easy to setup a home-made service&#39;s unit file here. ○ If you wish to modify existing configuration: § Mkdir /usr/lib/systemd/system/&lt;service-name&gt;.d = e.g. nginx.d § Inside nginx.d, you can put a file called overload.conf where you can add your new configuration. □ Systemd meshes the actual unit file with the .conf file. The .conf file takes priority if e.g. same values are defined. § You can also do this with systemctl edit nginx.service. (then you still must run systemctl restart nginx.service for changes to take effect). § To set the [INSTALL] section of the unit file, just use systemctl add-wants, systemctl add-requires. • Service and startup control caveats * Red Hat /etc/sysconfig * iptables-config, selinux, console/ directory for keymappings, and more. * network-scripts/ifcfg-eth0 contains configuration information for the eth0 network interface. * iptables-config is only for loading additional iptables modules; not to change iptables config. That&#39;s done elsewhere. * Systemd logging * With the advent of the cloud, diagnostic information was easily lost. Cannot just stare at the terminal to see error output! * journald daemon collects system messages from early boot time to final shutdown. * You can see the logs with journalctl. * rsyslog can forward logs to a remote syslog server or turn them into more ordinary log file formats. * /etc/systemd/journald.conf =&gt; here you can set configuration options * For example, you might set Storage=persistent, which will save logs across reboots/sessions. 2.8 FreeBSD Init and startup scripts Startup process for FreeBSD: init =&gt; /etc/rc (wrapper which triggers other startup scripts…) =&gt; config files: /etc/defaults/config, /etc/rc.conf, /etc/rc.conf.local =&gt; /usr/local/etc/rc.d and /etc/rc.d. Startup scripts are run in an order that can be seen with rcorder command. 2.9 Reboot and shutdown procedures halt and reboot commands Technically the same; reboot prepares AND shuts the system down; halt prepares but does not actually shut it down (unless you do halt -p). shutdown does not differ at all technically from reboot and halt. 2.10 Stratagems for a non booting system 3 things to do: Don’t debug; restore to a previous good state. Get a recovery mode shell, and investigate interactively. Load a separate (live) OS image and debug the primary one from there. Single-user mode Recovery mode, minimal startup, no network, just basic initialization. Red Hat tries to mount file systems as well. This might be problematic if the file system is corrupt. Control this with kernel parameters; systemd.unit=emergency.target (from GRUB) will boot without mounting file systems. Enter single-user mode on systems that use systemd/GRUB: append: systemd.unit=rescue.target to the end of the kernel parameters (press e on the GRUB screen for the kernel you wish to boot). Recovery for cloud systems Reset to known good state! You can, if necessary, launch for example a separate VM/EC2 instance, unmount the disk from the problem VM/EC2 and attach it to the new VM/EC2. From the new VM/EC2, which runs another primary, good state OS, you can mount the problem file system and try to fix it from there.","headline":"Chapter 2 Booting and System Management Daemon","mainEntityOfPage":{"@type":"WebPage","@id":"http://localhost:4000/sysadmin/2023/05/22/sysadmin-ch2.html"},"url":"http://localhost:4000/sysadmin/2023/05/22/sysadmin-ch2.html"}</script>
+<!-- End Jekyll SEO tag -->
+<link rel="stylesheet" href="/assets/main.css"><link type="application/atom+xml" rel="alternate" href="http://localhost:4000/feed.xml" title="aljica" /></head>
+<body><header class="site-header" role="banner">
+
+  <div class="wrapper"><a class="site-title" rel="author" href="/">aljica</a><nav class="site-nav">
+        <input type="checkbox" id="nav-trigger" class="nav-trigger" />
+        <label for="nav-trigger">
+          <span class="menu-icon">
+            <svg viewBox="0 0 18 15" width="18px" height="15px">
+              <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.483,1.484-1.483h15.032C17.335,12.031,18,12.695,18,13.516L18,13.516z"/>
+            </svg>
+          </span>
+        </label>
+
+        <div class="trigger"><a class="page-link" href="/architecture/">Architecture</a><a class="page-link" href="/linux/">Linux</a><a class="page-link" href="/posts/">Posts</a><a class="page-link" href="/security/">Security</a><a class="page-link" href="/summary/">Summaries</a></div>
+      </nav></div>
+</header>
+<main class="page-content" aria-label="Content">
+      <div class="wrapper">
+        <article class="post h-entry" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title p-name" itemprop="name headline">Chapter 2 Booting and System Management Daemon</h1>
+    <p class="post-meta">
+      <time class="dt-published" datetime="2023-05-22T00:00:00+02:00" itemprop="datePublished">May 22, 2023
+      </time></p>
+  </header>
+
+  <div class="post-content e-content" itemprop="articleBody">
+    <p><img src="/docs/assets/images/sysadmin-handbook/ch2/1.png" alt="Image" /></p>
+
+<p><img src="/docs/assets/images/sysadmin-handbook/ch2/2.png" alt="Image" /></p>
+
+<p><img src="/docs/assets/images/sysadmin-handbook/ch2/3.png" alt="Image" /></p>
+
+<p><img src="/docs/assets/images/sysadmin-handbook/ch2/4.png" alt="Image" /></p>
+
+<p><img src="/docs/assets/images/sysadmin-handbook/ch2/5.png" alt="Image" /></p>
+
+<!--
+<img src="/docs/assets/images/sysadmin-handbook/ch2/5.png" width="350" height="600">
+-->
+
+<h1 id="26-sys-management-daemons">2.6 SYS MANAGEMENT DAEMONS</h1>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>• Kernel gets loaded into memory
+	○ As part of the Kernel's implementation, "spontaneous" processes also get run
+		§ These have low PIDs
+	○ Systemd  has PID 1 - the initialization process for the kernel.
+• Init responsibilities:
+	○ Init can run in 3 different modes:
+		1. Single-user mode. Minimal setup. Basic filesystem and root shell.
+		2. Multi-user mode. Full setup. Several users, GUI, network services, etc.
+		3. Server mode. Also just shell, but loads services relevant for servers.
+	○ Init does the following:
+		§ Cleans up old files in /tmp.
+		§ Configures packet filters, network services, etc.
+		§ Starts/stops processes.
+		§ Setting time zone, computer name.
+		§ Mounting file systems, checking disks.
+• Implementations of Init:
+	○ FreeBSD uses init
+	○ Linux distros use systemd
+	○ MacOS uses launchd
+• Traditional init:
+	○ Has some shortcomings:
+		§ Init is not powerful enough to run things on its own.
+		§ It has a configuration file that points to shell scripts for selecting run level (i.e. which mode to run in; single-user, multi-user or server mode)
+		§ These shell scripts in turn point to additional scripts for starting the relevant services and daemones for a given run level/mode.
+• Systemd vs the world
+	○ Systemd is a much larger "monolithic" component than init.
+	○ Systemd has control over things like the network daemons/services networkd, journald, and logind.
+		§ Arguments against systemd include that it's bad for security that systemd has control over so many areas of the system.
+		§ There are many more arguments at systemd.org. E.g. that it breeds complexity.
+		§ It imposed many new standards and guidelines on the Linux kernel, which could also be a reason people dislike it.
+• Inits judged and assigned their proper punishments
+	○ Systemd has mostly taken over, Red Hat, Ubuntu, Debian
+	○ Init can still be useful for small footprint Linux installations
+</code></pre></div></div>
+
+<h1 id="27-systemd-in-detail">2.7 SYSTEMD IN DETAIL</h1>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>• It does advanced process management
+• It's a collection of many things; daemons, libraries, kernel components, etc.
+
+• Units and unit files
+	○ Systemd manages "UNITS"
+	○ A unit can be a: service, socket, mount point, disk, resource management slice, and many other things.
+	○ A UNIT FILE tells systemd where the entity that systemd manages (the unit) has its executable file, how systemd can start/stop its services and which services it depends on.
+	○ /etc/rsync.conf - unit file for rsync daemon which mirrors filesystems.
+	○ Unit files typically go in /usr/lib/systemd/system/, but do not modify these.
+	○ Your modified unit files can go into /etc/systemd/system/
+	○ /etc unit files have highest prio.
+	○ File suffixes: .service or .timer. Some declarations in the files can only appear for certain types of units, e.g. SERVICE for services etc.
+
+• Systemctl: manage systemd
+	○ Systemctl --list-units --type=service
+	○ Systemctl --list-unit-files [pattern]
+	○ Various ways of working with systemd on the cmdline.
+
+• Unit statuses
+	○ Sudo systemctl status &lt;service-name&gt;
+	○ Use the -l option to get full log outputs and not condensed ones which are mostly unreadable.
+	○ "linked" status
+		§ The unit file is not part of systemd's system directory. Instead, it's a symlink to the unit file which lives elsewhere.
+		§ Disabling a linked unit file deletes the symlink and all references to it.
+	○ "masked" status
+		§ Systemctl is aware of the unit but is not allowed to run it or act on any of its configuration.
+• Targets
+	○ You can set which run-level/operating mode you want to run in.
+	○ Sudo systemctl set-default graphical.target
+		§ This will run a full GUI with networking and all other user features
+		§ You can also choose single-user mode or recovery mode, etc.
+	○ You can also run sudo systemctl isolate recovery.target
+		§ Isolate deactivates all components not needed for recovery and only activates those required for recovery
+	○ Sudo systemctl list-units --type=target
+		§ See a list of all available targets/operating modes/run-levels
+• Dependencies among units
+	○ D-Bus interprocess communication/network ports
+		§ Systemd knows which services would use various network ports and IPC connection points
+		§ IF a client shows up at that port/point, only then would systemd start the corresponding service.
+			□ Otherwise, the service remains dormant.
+	○ In the unit files, you can specify which other services a given unit might depend on, might "Wants" i.e. prefer to run in conjunction with, etc. See the list on the right.
+	○ Systemctl add-wants multi-user.target my.local.service
+		§ This ensures that when multi-user.target boots, my.local.service will be started as well.
+		§ This adds a DEPENDENCY for multi-user.target on my.local.service.
+• Execution Order
+	○ The execution order of services is handled by a separate systemd component and is not necessarily determined by the various dependency clauses such as "Wants", "Requires" etc.
+• A more complex unit file example
+	○ Type forking means the service should run as a daemon in the background
+	○ SIGQUIT is equivalent to:
+		§ ExecStop=/bin/kill -s HUP $MAINPID
+• Local services and customizations
+	○ Go to /usr/lib/systemd/system/
+		§ Lists user-space services' unit files.
+		§ Quite easy to setup a home-made service's unit file here.
+	○ If you wish to modify existing configuration:
+		§ Mkdir /usr/lib/systemd/system/&lt;service-name&gt;.d = e.g. nginx.d
+		§ Inside nginx.d, you can put a file called overload.conf where you can add your new configuration.
+			□ Systemd meshes the actual unit file with the .conf file. The .conf file takes priority if e.g. same values are defined.
+		§ You can also do this with systemctl edit nginx.service. (then you still must run systemctl restart nginx.service for changes to take effect).
+		§ To set the [INSTALL] section of the unit file, just use systemctl add-wants, systemctl add-requires.
+• Service and startup control caveats
+    * Red Hat /etc/sysconfig
+        * iptables-config, selinux, console/ directory for keymappings, and more.
+        * network-scripts/ifcfg-eth0 contains configuration information for the eth0 network interface.
+        * iptables-config is only for loading additional iptables modules; not to change iptables config. That's done elsewhere.
+* Systemd logging
+    * With the advent of the cloud, diagnostic information was easily lost. Cannot just stare at the terminal to see error output!
+    * journald daemon collects system messages from early boot time to final shutdown.
+    * You can see the logs with journalctl.
+    * rsyslog can forward logs to a remote syslog server or turn them into more ordinary log file formats.
+    * /etc/systemd/journald.conf =&gt; here you can set configuration options 
+        * For example, you might set Storage=persistent, which will save logs across reboots/sessions.
+</code></pre></div></div>
+
+<h1 id="28-freebsd-init-and-startup-scripts">2.8 FreeBSD Init and startup scripts</h1>
+
+<ul>
+  <li>Startup process for FreeBSD:
+    <ul>
+      <li>init =&gt; /etc/rc (wrapper which triggers other startup scripts…) =&gt; config files: /etc/defaults/config, /etc/rc.conf, /etc/rc.conf.local =&gt; /usr/local/etc/rc.d and /etc/rc.d.</li>
+      <li>Startup scripts are run in an order that can be seen with rcorder command.</li>
+    </ul>
+  </li>
+</ul>
+
+<h1 id="29-reboot-and-shutdown-procedures">2.9 Reboot and shutdown procedures</h1>
+
+<ul>
+  <li>halt and reboot commands
+    <ul>
+      <li>Technically the same; reboot prepares AND shuts the system down; halt prepares but does not actually shut it down (unless you do halt -p).</li>
+      <li>shutdown does not differ at all technically from reboot and halt.</li>
+    </ul>
+  </li>
+</ul>
+
+<h1 id="210-stratagems-for-a-non-booting-system">2.10 Stratagems for a non booting system</h1>
+
+<ul>
+  <li>3 things to do:
+    <ul>
+      <li>Don’t debug; restore to a previous good state.</li>
+      <li>Get a recovery mode shell, and investigate interactively.</li>
+      <li>Load a separate (live) OS image and debug the primary one from there.</li>
+    </ul>
+  </li>
+  <li>Single-user mode
+    <ul>
+      <li>Recovery mode, minimal startup, no network, just basic initialization.</li>
+      <li>Red Hat tries to mount file systems as well. This might be problematic if the file system is corrupt.
+        <ul>
+          <li>Control this with kernel parameters; systemd.unit=emergency.target (from GRUB) will boot without mounting file systems.</li>
+        </ul>
+      </li>
+    </ul>
+  </li>
+  <li>Enter single-user mode on systems that use systemd/GRUB:
+    <ul>
+      <li>append: systemd.unit=rescue.target to the end of the kernel parameters (press e on the GRUB screen for the kernel you wish to boot).</li>
+    </ul>
+  </li>
+  <li>Recovery for cloud systems
+    <ul>
+      <li>Reset to known good state!</li>
+      <li>You can, if necessary, launch for example a separate VM/EC2 instance, unmount the disk from the problem VM/EC2 and attach it to the new VM/EC2. From the new VM/EC2, which runs another primary, good state OS, you can mount the problem file system and try to fix it from there.</li>
+    </ul>
+  </li>
+</ul>
+
+
+  </div><a class="u-url" href="/sysadmin/2023/05/22/sysadmin-ch2.html" hidden></a>
+</article>
+
+      </div>
+    </main><footer class="site-footer h-card">
+  <data class="u-url" href="/"></data>
+
+  <div class="wrapper">
+
+    <h2 class="footer-heading">aljica</h2>
+
+    <div class="footer-col-wrapper">
+      <div class="footer-col footer-col-1">
+        <ul class="contact-list">
+          <li class="p-name">aljica</li><li><a class="u-email" href="mailto:aljica@kth.se">aljica@kth.se</a></li></ul>
+      </div>
+
+      <div class="footer-col footer-col-2"><ul class="social-media-list"><li><a href="https://github.com/aljica"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#github"></use></svg> <span class="username">aljica</span></a></li></ul>
+</div>
+
+      <div class="footer-col footer-col-3">
+        <p></p>
+      </div>
+    </div>
+
+  </div>
+
+</footer>
+</body>
+
+</html>

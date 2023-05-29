@@ -26,3 +26,5 @@ permalink: /linux/
 * [Chapter 2: Booting and System Management Daemon]({{site.url}}/sysadmin/2023/05/22/sysadmin-ch2.html)
 
 * [Chapter 3: Access Controls]({{site.url}}/sysadmin/2023/05/22/sysadmin-ch3.html)
+
+* [Chapter 4: Process Control]({{site.url}}/sysadmin/2023/05/29/sysadmin-ch4.html)
