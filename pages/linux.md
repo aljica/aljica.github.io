@@ -21,6 +21,8 @@ permalink: /linux/
 
 * [The Linux Programming Interface Chapter 14 File Systems Summary]({{site.url}}/tlpi/2023/05/22/tlpi-ch14.html)
 
+* [The Linux Programming Interface Chapter 15 File Attributes]({{site.url}}/tlpi/2023/05/29/tlpi-ch15.html)
+
 <h3>UNIX and Linux System Administration Handbook 5th Edition</h3>
 
 * [Chapter 2: Booting and System Management Daemon]({{site.url}}/sysadmin/2023/05/22/sysadmin-ch2.html)
