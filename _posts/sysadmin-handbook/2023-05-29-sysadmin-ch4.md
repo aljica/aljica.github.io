@@ -65,3 +65,53 @@ categories: sysadmin
     * If fork() equals PID of the child, then you are executing in the parent process.
 * The child can use an exec() command to run another command.
     * Exec() also resets various memory segments so that the newly executing command becomes its own process entirely; the fork() command helps it setup the core things needed for a process - e.g. code, variables, stack, heap, etc. by simply copying them from the parent - but then it can change those and run as an entirely independent process.
+
+
+* Upon system startup, kernel creates the init / systemd process.
+    * All subsequent processes are children of init / systemd with PID 1.
+* A completed process calls _exit routine to notify kernel it's ready to die.
+    * Process sends exit code.
+* Parent uses wait() to acknowledge death of child.
+    * Parent can examine exit code & other stats.
+    * If parent dies first, orphans are adopted by init / systemd which handles wait() and removal of children.
+
+# Signals
+
+* Can be sent among processes as a means of communication
+* CTRL+C / CTRL+Z
+* kill command used by administrator
+* Used by kernel to:
+    * Notify a process of e.g. death of child
+    * Kill processes that commit infractions (e.g. division by zero).
+    * Much more.
+
+* A process can have a signal handler function that gets called when a particular signal is received.
+* Otherwise, kernel handles it.
+* Results can be:
+    * Termination of process.
+    * Core dump (memory image of process is logged) - debugging.
+
+* Processes can block / ignore signals.
+    * Blocked:
+        * Process must explicitly unblock the signal; it is queued by the kernel.
+            * Handler function called only once, even if multiple signals in queue.
+        * Ignored: signals are dropped.
+
+![Image](/docs/assets/images/sysadmin-handbook/ch4/signals.jpeg)
+
+* KILL and STOP cannot be caught/blocked/ignored.
+* STOP suspends process execution until CONT is received.
+    * CONT may be ignored/caught, but not blocked.
+
+* CTRL+Z => soft "STOP" => "request to stop".
+    * Programs must not have a handler function for this - i.e. they can ignore it.
+
+* Differentiation between different signals:
+    * KILL - 
+        * Unblockable.
+        * Terminates process.
+    * INT - 
+        * CTRL+C
+        * Request to terminate current operation.
+            * Process may catch & react to signal. 
+            * Default behavior if not handler routine is for process to be killed.
