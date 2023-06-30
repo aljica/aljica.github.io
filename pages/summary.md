@@ -7,6 +7,8 @@ permalink: /summary/
 
 * [Kubernetes Architecture]({{site.url}}/kubernetes/2023/05/22/kubernetes-architecture.html)
 
+* [Kubernetes Installation]({{site.url}}/kubernetes/2023/06/21/kubernetes-setup.html)
+
 <h3>Site Reliability Engineering: How Google Runs Production Systems</h3>
 
 * [Chapter 2 The Production Environment at Google]({{site.url}}/sre/2023/05/22/sre-ch2.html)
