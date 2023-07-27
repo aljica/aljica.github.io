@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1"><!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>The Linux Programming Interface Chapter 5 File I/O Further Details | aljica</title>
+<meta name="generator" content="Jekyll v3.8.6" />
+<meta property="og:title" content="The Linux Programming Interface Chapter 5 File I/O Further Details" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="5.1 Atomicity and Race Conditions" />
+<meta property="og:description" content="5.1 Atomicity and Race Conditions" />
+<link rel="canonical" href="http://localhost:4000/tlpi/2023/05/21/the-linux-programming-interface.html" />
+<meta property="og:url" content="http://localhost:4000/tlpi/2023/05/21/the-linux-programming-interface.html" />
+<meta property="og:site_name" content="aljica" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2023-05-21T00:00:00+02:00" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="The Linux Programming Interface Chapter 5 File I/O Further Details" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"BlogPosting","dateModified":"2023-05-21T00:00:00+02:00","datePublished":"2023-05-21T00:00:00+02:00","description":"5.1 Atomicity and Race Conditions","headline":"The Linux Programming Interface Chapter 5 File I/O Further Details","mainEntityOfPage":{"@type":"WebPage","@id":"http://localhost:4000/tlpi/2023/05/21/the-linux-programming-interface.html"},"url":"http://localhost:4000/tlpi/2023/05/21/the-linux-programming-interface.html"}</script>
+<!-- End Jekyll SEO tag -->
+<link rel="stylesheet" href="/assets/main.css"><link type="application/atom+xml" rel="alternate" href="http://localhost:4000/feed.xml" title="aljica" /></head>
+<body><header class="site-header" role="banner">
+
+  <div class="wrapper"><a class="site-title" rel="author" href="/">aljica</a><nav class="site-nav">
+        <input type="checkbox" id="nav-trigger" class="nav-trigger" />
+        <label for="nav-trigger">
+          <span class="menu-icon">
+            <svg viewBox="0 0 18 15" width="18px" height="15px">
+              <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.483,1.484-1.483h15.032C17.335,12.031,18,12.695,18,13.516L18,13.516z"/>
+            </svg>
+          </span>
+        </label>
+
+        <div class="trigger"><a class="page-link" href="/architecture/">Architecture</a><a class="page-link" href="/az305/">Azure</a><a class="page-link" href="/linux/">Linux</a><a class="page-link" href="/posts/">Posts</a><a class="page-link" href="/security/">Security</a><a class="page-link" href="/summary/">Summaries</a></div>
+      </nav></div>
+</header>
+<main class="page-content" aria-label="Content">
+      <div class="wrapper">
+        <article class="post h-entry" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title p-name" itemprop="name headline">The Linux Programming Interface Chapter 5 File I/O Further Details</h1>
+    <p class="post-meta">
+      <time class="dt-published" datetime="2023-05-21T00:00:00+02:00" itemprop="datePublished">May 21, 2023
+      </time></p>
+  </header>
+
+  <div class="post-content e-content" itemprop="articleBody">
+    <p><a href="#5-1-atomicity-and-race-conditions">5.1 Atomicity and Race Conditions</a></p>
+
+<p><a href="#5-3-open-file-status-flags">5.3 Open File Status Flags</a></p>
+
+<p><a href="#5-4-relationship-between-file-descriptors-and-open-files">5.4 Relationship Between File Descriptors and Open Files</a></p>
+
+<p><a href="#5-5-duplicating-file-descriptors">5.5 Duplicating File Descriptors</a></p>
+
+<p><a href="#5-6-file-io-at-specified-offset-with-pread-and-pwrite">5.6 File IO at Specified Offset with pread and pwrite</a></p>
+
+<p><a href="#5-7-scatter-gather-io-with-readv-and-writev">5.7 Scatter Gather IO with readv and writev</a></p>
+
+<h1 id="5-1-atomicity-and-race-conditions">5 1 Atomicity and Race Conditions</h1>
+<p><img src="/docs/assets/images/5.1-atomicity.png" alt="Image" /></p>
+<ul>
+  <li>Syscalls = atomic, uninterrupted
+    <ul>
+      <li>Avoids race conditions</li>
+    </ul>
+  </li>
+  <li>O_EXCL and O_CREAT flags with open() call
+    <ul>
+      <li>Returns error if file already exists, otherwise creates it (checks if it exists &amp; otherwise creates: does this in one atomic operation)</li>
+      <li>Process can ensure it is the creator of a file
+        <ul>
+          <li>We can understand why by analyzing bad_exclusive_open below</li>
+        </ul>
+      </li>
+    </ul>
+  </li>
+  <li>Fileio/bad_exclusive_open.c
+    <ul>
+      <li>What this code does:
+        <ul>
+          <li>Tries to open a file
+            <ul>
+              <li>If file does not exist, file is opened.</li>
+              <li>If file does exist, file is created.
+                <ul>
+                  <li>Prints PID of the process creating the file, inside the loops.</li>
+                </ul>
+              </li>
+            </ul>
+          </li>
+        </ul>
+      </li>
+      <li>Bad_exclusive_open might evaluate the if-statement and notice the file does not exist, but then the scheduler might let another program run in the meantime. This other program could then create the file. Then the scheduler could go back to bad_exclusive_open. Now the bad_exclusive_open runs the open() command to create the file if it does not exist, thinking it created it.</li>
+      <li>The above is a race condition example.</li>
+      <li>The above could also happen in a system with multiple parallel processors (as is common today), not necessarily a kernel process scheduler thing.</li>
+      <li>Testing the issue: Make one program sleep for 5 seconds, run two instances of the program simultaneously; both will claim they exclusively created the file.</li>
+    </ul>
+  </li>
+  <li>Another example of atomicity being required:
+    <ul>
+      <li>Multiple processes appending to global log file.</li>
+      <li>First lseek() to end of file, then write() to end of file.</li>
+      <li>If another process runs between lseek() and write() and appends some data to the global log file, when the first process resumes, it will overwrite that data because lseek() put them at the same end-of-file position (which changes while the second process ran and appended data).
+Problem solved with: open() with O_APPEND flag.</li>
+    </ul>
+  </li>
+</ul>
+
+<h1 id="5-3-open-file-status-flags">5 3 Open File Status Flags</h1>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>• Retrieve/Modify status flags of an open file.
+	○ Int flags = fcntl(fd, F_GETFL);
+		§ F_GETFL gets flags.
+	○ We can check if file was opened with synchronized writes, for instance:
+		§ If (flags &amp; O_SYNC)
+			□ Printf("synced for writes");
+• Checking access mode flags is more complex
+	○ Because O_RDONLY, O_WRONLY, O_RDWR consist of multiple (i.e. not single) bits in the open file status flags
+	○ Mask flags value with O_ACCMODE constant:
+		§ Int accessmode = flags &amp; O_ACCMODE
+		§ If (accessmode == O_WRONLY || accessmode == O_RDWR)
+			□ Printf("file is writable");
+• Modify open file status flags with fcntl() F_SETFL cmd.
+	○ Used in the following scenarios:
+		§ File was not opened by the calling program
+		§ The file descriptor stems from a pipe() or socket() call, not open().
+	○ To update flags:
+		1. Get flags with GET_FL
+		2. Modify flags
+		3. Update flags with SET_FL
+	○ Can modify O_APPEND, O_NONBLOCK, O_NOATIME, O_ASYNC, O_DIRECT.
+    * See the code on the right.
+</code></pre></div></div>
+
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kt">int</span> <span class="n">flags</span> <span class="o">=</span> <span class="n">fcntl</span><span class="p">(</span><span class="n">fd</span><span class="p">,</span> <span class="n">F_GETFL</span><span class="p">);</span>
+<span class="k">if</span> <span class="p">(</span><span class="n">flags</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="n">errExit</span><span class="p">();</span>
+<span class="n">flags</span> <span class="o">|=</span> <span class="n">O_APPEND</span><span class="p">;</span>
+<span class="k">if</span> <span class="nf">fcntl</span><span class="p">(</span><span class="n">fd</span><span class="p">,</span> <span class="n">SET_FL</span><span class="p">,</span> <span class="n">flags</span><span class="p">)</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span>
+  <span class="n">errExit</span><span class="p">();</span>
+<span class="n">printf</span><span class="p">(</span><span class="s">"success"</span><span class="p">);</span>
+</code></pre></div></div>
+
+<h1 id="5-4-relationship-between-file-descriptors-and-open-files">5 4 Relationship Between File Descriptors and Open Files</h1>
+
+<p><img src="/docs/assets/images/tlpi-5.4-fd.png" alt="Image" /></p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>• Can have multiple file descriptors for the same file (e.g. different processes)
+• 3 data structures maintained by kernel:
+	○ Per-process file descriptor table
+		§ List of open FD's for each process. Table entry consists of:
+			□ a reference to the open FD
+			□ A set of flags
+	○ System-wide table of all open file descriptors
+		§ Table entry consists of:
+			□ Current file offset
+			□ Status flags
+			□ File access mode (read, write, read-write etc)
+			□ Settings related to signals driven I/O
+			□ A reference to the i-node object for this file
+	○ File system i-node table
+		§ Consists of:
+			□ File type (regular file, socket, FIFO) and permissions
+			□ Pointer to a list of locks held on the file
+			□ File properties (size, timestamps of different file operations etc)
+• Reasons for multiple fd's for same files:
+	○ Fork() could lead to process A and B pointing to same file descriptor (fd 2 process A, fd 2 proc B)
+	○ Fd 0 in pA and fd3 in pB =&gt; but they point to same i-node (e.g. they each called open() on the same file)
+	○ Implications:
+		§ Because file offset is system-wide, if pA for fd2 changes file offset, pB's fd2 is also impacted.
+		§ Similar impact on open file status flags (e.g. O_APPEND, O_ASYNC etc) using fcntl() F_GETFL and F_SETFL commands.
+        * File descriptor flags are private to the process (e.g. close-on-exec)
+</code></pre></div></div>
+
+<h1 id="5-5-duplicating-file-descriptors">5 5 Duplicating File Descriptors</h1>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>• 2&gt;&amp;1 tells BASH we want standard error (fd2) redirected to same place as standard output (fd1).
+	○ ./myscript &gt; results.log 2&gt;&amp;1
+		§ Sends std output and std error to the file results.log
+		§ The shell sets fd2 to point to the same open file as fd1 by duplicating fd1.
+		§ Opening the results.log file twice is not sufficient: file offsets etc would not be synced i.e. stdoutput and stderror would overwrite each other.
+		§ Dup() takes an oldfd, returns new fd that points to the same open fd.
+		§ Dup2(int oldfd, int newfd);
+			□ To specify exactly which newfd number you want, e.g.: dup2(1, 2);
+				® This returns the value of the 2nd file descriptor
+				® Returns with error EBADF
+			□ Can also use fcntl(oldfd, F_DUPED, startfd);
+				® startFD denotes the starting number of your desired fd number, if not available, a higher number is returned
+		§ Dup can always be replicated using close() and fcntl()
+		§ Dup3(int oldfd, int newfd, int flags) for optional flags such as O_CLOEXEC (close-on-exec flag)
+</code></pre></div></div>
+
+<h1 id="5-6-file-io-at-specified-offset-with-pread-and-pwrite">5 6 File IO at Specified Offset with pread and pwrite</h1>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>• Ssize_t Pread(int fd, void *buf, size_t count, off_t offset);
+	○ Returns # bytes read, 0 on EOF, -1 on error
+	○ Like read() but at a specified offset
+	○ Equivalent to atomically calling the following:
+		§ Orig = lseek() //save current offset
+		§ Lseek(offset) // set pointer to specified offset
+		§ S = read(…) // read data
+		§ Lseek(orig) // set pointer to original offset
+• Ssize_t pwrite(int fd, const void *buf, size_t count, off_t offset);
+	○ Returns # bytes written, -1 on error
+• Useful in multithreaded applications
+	○ Threads in a process all use the same file descriptor table
+	○ Avoids race conditions
+	○ Can also be useful for processes that have file descriptors referring to the same open file description
+• Better to use 1 system call than 2 for performance
+	○ I/O bears much greater overhead than system calls though
+</code></pre></div></div>
+
+<h1 id="5-7-scatter-gather-io-with-readv-and-writev">5 7 Scatter Gather IO with readv and writev</h1>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>• Readv()/writev() = read multiple buffers at once. Buffers are defined in an array iov. Iovcnt specifies number of buffers (array element count).
+	○ Ssize_t readv(int fd, const struct iovec *iov, int iovcnt);
+		§ Returns # bytes read, 0 on EOF, -1 on error
+	○ Ssize_t writev(int fd, const struct iovec *iov, int iovcnt);
+		§ Returns # bytes written, -1 on error
+• Each element of iov concists of: ```c struct iovec {
+		§ void *iov_base // start address of buffer
+		§ size_t iov_len // # of bytes to transer to/from buffer } ```
+</code></pre></div></div>
+
+  </div><a class="u-url" href="/tlpi/2023/05/21/the-linux-programming-interface.html" hidden></a>
+</article>
+
+      </div>
+    </main><footer class="site-footer h-card">
+  <data class="u-url" href="/"></data>
+
+  <div class="wrapper">
+
+    <h2 class="footer-heading">aljica</h2>
+
+    <div class="footer-col-wrapper">
+      <div class="footer-col footer-col-1">
+        <ul class="contact-list">
+          <li class="p-name">aljica</li><li><a class="u-email" href="mailto:aljica@kth.se">aljica@kth.se</a></li></ul>
+      </div>
+
+      <div class="footer-col footer-col-2"><ul class="social-media-list"><li><a href="https://github.com/aljica"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#github"></use></svg> <span class="username">aljica</span></a></li></ul>
+</div>
+
+      <div class="footer-col footer-col-3">
+        <p></p>
+      </div>
+    </div>
+
+  </div>
+
+</footer>
+</body>
+
+</html>
