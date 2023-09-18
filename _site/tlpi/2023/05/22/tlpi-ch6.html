@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1"><!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>The Linux Programming Interface Chapter 6 Processes Summary | aljica</title>
+<meta name="generator" content="Jekyll v3.8.6" />
+<meta property="og:title" content="The Linux Programming Interface Chapter 6 Processes Summary" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="6.1 6.2 6.3 Memory Layout of a Process 6.4 Virtual Memory Management 6.6 Command Line Arguments 6.7 Environment List 6.8 Performing a Non Local GoTo 6 1 • A program on disk consists of the following: 1. Binary identification. i. What file-format it is. On Linux, ELF (Executable &amp; Linking format). 2. Machine instructions. 3. Location of entry-point (main function). 4. Data/constants/strings. 5. Names of variables/functions. 6. Shared libraries. 7. Other information on how to construct a process. • Kernel data structures involved in maintaining a process: ○ Virtual memory table/information. ○ File descriptor table. ○ Signal handling information. ○ Resource usage/limits. 6 2 • Process ID (PID). • Pid_t Getpid(void). ○ Pid_t is an integer type. • Maximum process ID number is 32,767. This is defined as a PID_MAX macro in Linux kernel. • The PID number can be increased via /proc/sys/kernel/pid_max file. • When the maximum PID number is reached, it begins from a low number again (PID 300, not PID 1, because PID 1 - 300 are often used by system daemons and processes). • Pid_t getppid(void) - gets parent PID. ○ See family tree of processes with pstree. 6 3 Memory Layout of a Process • The layout: 1. Machine instructions. Each process-instance of the program points to these machine instructions (and initialized/uninitialized data segments, described below). 2. Initialized data segments. Explicitly declared variables. i. E.g. int I = 10; 3. Uninitialized data segments, e.g. int I;. Not explicitly declared variables. 4. Stack. i. Each new function call gets a stack frame in the stack. ii. Contains the function&#39;s local variables, parameters and return value. 5. Heap. i. For dynamically allocating memory. • (Un)initialized data in main() function get stored in the (un)initialized data segments (and not main()&#39;s stack frame), whereas such data in another function get stored in the stack frame of that function. • Application Binary Interface (ABI) - set of rules for communication. A binary executable informs kernel/some library on how they should exchange certain important information. The ABI tells the kernel which registers and stack locations it will use to exchange this information. • Extern char etext, edata, end. ○ Extern char etext is the next byte after the end of the program text/code/instructions. ○ Edata is the unintiialized data segment. ○ End is the init data segment. 6 4 Virtual Memory Management • Locality of reference ○ Temporal locality § A program will use the same information again if it used it recently ○ Spatial locality § A program will use information close to information it recently used • RAM is divided into page frames • Virtual memory is divided into pages as well • Page size on Linux x86-32 = 4096 bytes • Swap ○ Can be used to store additional, unused pages. § If a process requests a page that happens to be in swap, page fault occurs: kernel must pause the process&#39;s execution and fetch the page(s). • Each process has a virtual page table. ○ Each element in the virtual page table points to a page in virtual address memory. § Each of these elements in turn point to either physical RAM memory where the page is stored, or indicate that the page is on disk. ○ If a process tries to access an element in the virtual page table that does not exist, a SIGSEGV signal is sent. § Unusued memory do not have to be added as entries in the virtual page table. • 4 situations when virtual address space of a process can change as kernel allocates/deallocates memory: ○ Stack grows downward ○ Heap grows ○ System-V related things ○ Mmap() or munmap() is used • There are 3 main benefits to mapping virtual addresses&#39; of processes to physical RAM memory: ○ Isolation § A process only has access to the physical RAM pages that are mapped to that process&#39;s page table. ○ Memory sharing § Processes can share code, data, without duplicating it. ○ Memory protection § You can have different access privileges set for different processes for the same data. □ e.g. read for pid7, read-write for pid10. • Stack starts at high address, and grows downward. ○ Whenever a function call or global/main variable declaration is made, a stack frame is added. ○ There&#39;s a register that keeps track of the current &quot;top&quot; of the stack, i.e. the end of the stack in the direction it grows in. • Kernel memory/stack at beginning of each process ○ If that user process makes a syscall, kernel can use this separate stack to add function calls. • Functions use a program counter CPU register to keep track of which machine instructions to execute next. ○ If another function is called, the new stack frame of the called function includes this machine instruction so that it can be saved, so that once the called function returns, the original function knows what to do. 6 6 Command Line Arguments • Argc/argv • Argv[0] is the name of the program ○ The program can check the name used when calling it by looking at argv[0] ○ The program can then have different behavior if for example the user called gzip as opposed to gunzip. • The array of elements is terminated by a NULL-byte char, i.e. argv[argc] is NULL. ○ Each string in argv[] is also null-terminated. • Non-portable method of accessing commandline arguments on Linux: ○ /proc/PID/cmdline ○ Or /proc/self/cmdline if the process is getting its own cmdline args. • ARG_MAX value, i.e. total number of bytes that can be supplied via args. ○ Total space for argv and environ (env variables sorta) can be specified with RLIMIT_STACK resource limit. 6 7 Environment List • Children inherit parent data • Environment variables: name=value pairs. • Export SHELL=/bin/sh ○ This is an example of an env var ○ Printenv to see a list of all env vars ○ Env list of any process can be found at /proc/PID/environ • Accessing the environment from a C program ○ **environ points to an array, where each element points to the environment variables ○ Stepping through this array is done with pointers, even though it&#39;s an array. § Reason being that there is no argc value that specifies the size of the environ array. ○ Getenv(name) returns point to the value of an environment variable name § THIS IS PORTABLE!! ○ You can also make changes to environment variables with putenv() and setenv(). § Use case: when you use fork() to create child processes, you want the child processes to also have this modified environment. ○ Executing SUID (set-used-ID) programs securely may require using clearenv() to clear all env vars first. ○ When you call setenv(), a memory buffer is allocated to store the name=value pair. § If a program repeatedly calls setenv() and clearenv(), this memory buffer does NOT get free&#39;d. □ This could lead to memory leaks. □ In practice, it does not, because programs tend to use clearenv() only on startup. 6 8 Performing a Non Local GoTo • Nonlocal goto means going from e.g. a function to some other memory area outside of the function. • Caveat: you cannot goto another function from a current function using goto, but you CAN using setjmp() and longjmp(). • Example use case: ○ Imagine multiple functions being called in a stack. ○ Each called function supplies its caller with a status value. ○ If an error status occurs at any stage, to go back to a normally executing function, we might have to pop several function calls from the stack. § Instead of going one by one, we can use the setjmp() and longjmp() commands to directly jump back to an OK function. • C does not allow for nested functions e.g. where you define X() then within X() you define Y(). So compiler has no way of knowing if Y is on the stack if a goto is written in X(). Pascal for example allows for this nesting and can thus in certain scenarios determine that a goto is possible. • Jump calls: ○ Setjmp(jmp_buf env); § Returns 0 on initial return, val when a longjmp() returns to setjmp() ○ Longjmp(jmp_buf env, int val); § Val specifies a value to supply the setjmp() with. That way, you can use val to distinguish which part of the program called setjmp(). If val is set to 0, it is automatically changed to 1 to avoid being misinterpreted as being the default 0. ○ Env stores the following: 1. Stack pointer register (that points to the top of the stack) (so it can &quot;erase&quot; unneeded function calls by simply moving the pointer to the same place it was when setjmp() was declared when longjmp() is called, accomplishing our intended purpose) 2. Program counter register (so it knows where setjmp() was executing from) • Env usually declared as a global var (or, less commonly, passed as function param) ○ There are restrictions specified by SUSv3 and C99 on when setjmp() can be used. Examples include: • If/while/switch • Etc • S = setjmp(env); is not standards conformant □ Somehow cannot guarantee setjmp() in this way has all the necessary info to save register values and the full stack. • Abusing longjmp() 1. Declare global buffer env. 2. Inside x(), setjmp(). 3. x() returns. 4. y() calls longjmp() to the setjmp() inside x(). • PROBLEM: x() is NOT on the stack! Chaos ensues. Program crash or infinite call-return loop, where the program thinks it&#39;s returning from a legitimate call. • Setjmp/longjmp are ran at run-time, not during lexical analysis by the compiler during compilation time. ○ In some cases, due to compiler optimizations, because setjmp/longjmp may not store all relevant register values, could lead to wrong values being returned after a longjmp. ○ Any local variables that the compiler does optimizations for (which may include code REORGANIZATION, which explains the /proc/setjmp_vars.c result to some degree), and most commonly Pointer variables and simple types such as char, int, float, and long are vulnerable. • Declare each local variable that may be impacted by setjmp/longjmp as &quot;VOLATILE&quot; to tell the compiler NOT to do optimizations for it. ○ See /proc/setjmp_vars.c * You should generally avoid using set/longjmp due to po" />
+<meta property="og:description" content="6.1 6.2 6.3 Memory Layout of a Process 6.4 Virtual Memory Management 6.6 Command Line Arguments 6.7 Environment List 6.8 Performing a Non Local GoTo 6 1 • A program on disk consists of the following: 1. Binary identification. i. What file-format it is. On Linux, ELF (Executable &amp; Linking format). 2. Machine instructions. 3. Location of entry-point (main function). 4. Data/constants/strings. 5. Names of variables/functions. 6. Shared libraries. 7. Other information on how to construct a process. • Kernel data structures involved in maintaining a process: ○ Virtual memory table/information. ○ File descriptor table. ○ Signal handling information. ○ Resource usage/limits. 6 2 • Process ID (PID). • Pid_t Getpid(void). ○ Pid_t is an integer type. • Maximum process ID number is 32,767. This is defined as a PID_MAX macro in Linux kernel. • The PID number can be increased via /proc/sys/kernel/pid_max file. • When the maximum PID number is reached, it begins from a low number again (PID 300, not PID 1, because PID 1 - 300 are often used by system daemons and processes). • Pid_t getppid(void) - gets parent PID. ○ See family tree of processes with pstree. 6 3 Memory Layout of a Process • The layout: 1. Machine instructions. Each process-instance of the program points to these machine instructions (and initialized/uninitialized data segments, described below). 2. Initialized data segments. Explicitly declared variables. i. E.g. int I = 10; 3. Uninitialized data segments, e.g. int I;. Not explicitly declared variables. 4. Stack. i. Each new function call gets a stack frame in the stack. ii. Contains the function&#39;s local variables, parameters and return value. 5. Heap. i. For dynamically allocating memory. • (Un)initialized data in main() function get stored in the (un)initialized data segments (and not main()&#39;s stack frame), whereas such data in another function get stored in the stack frame of that function. • Application Binary Interface (ABI) - set of rules for communication. A binary executable informs kernel/some library on how they should exchange certain important information. The ABI tells the kernel which registers and stack locations it will use to exchange this information. • Extern char etext, edata, end. ○ Extern char etext is the next byte after the end of the program text/code/instructions. ○ Edata is the unintiialized data segment. ○ End is the init data segment. 6 4 Virtual Memory Management • Locality of reference ○ Temporal locality § A program will use the same information again if it used it recently ○ Spatial locality § A program will use information close to information it recently used • RAM is divided into page frames • Virtual memory is divided into pages as well • Page size on Linux x86-32 = 4096 bytes • Swap ○ Can be used to store additional, unused pages. § If a process requests a page that happens to be in swap, page fault occurs: kernel must pause the process&#39;s execution and fetch the page(s). • Each process has a virtual page table. ○ Each element in the virtual page table points to a page in virtual address memory. § Each of these elements in turn point to either physical RAM memory where the page is stored, or indicate that the page is on disk. ○ If a process tries to access an element in the virtual page table that does not exist, a SIGSEGV signal is sent. § Unusued memory do not have to be added as entries in the virtual page table. • 4 situations when virtual address space of a process can change as kernel allocates/deallocates memory: ○ Stack grows downward ○ Heap grows ○ System-V related things ○ Mmap() or munmap() is used • There are 3 main benefits to mapping virtual addresses&#39; of processes to physical RAM memory: ○ Isolation § A process only has access to the physical RAM pages that are mapped to that process&#39;s page table. ○ Memory sharing § Processes can share code, data, without duplicating it. ○ Memory protection § You can have different access privileges set for different processes for the same data. □ e.g. read for pid7, read-write for pid10. • Stack starts at high address, and grows downward. ○ Whenever a function call or global/main variable declaration is made, a stack frame is added. ○ There&#39;s a register that keeps track of the current &quot;top&quot; of the stack, i.e. the end of the stack in the direction it grows in. • Kernel memory/stack at beginning of each process ○ If that user process makes a syscall, kernel can use this separate stack to add function calls. • Functions use a program counter CPU register to keep track of which machine instructions to execute next. ○ If another function is called, the new stack frame of the called function includes this machine instruction so that it can be saved, so that once the called function returns, the original function knows what to do. 6 6 Command Line Arguments • Argc/argv • Argv[0] is the name of the program ○ The program can check the name used when calling it by looking at argv[0] ○ The program can then have different behavior if for example the user called gzip as opposed to gunzip. • The array of elements is terminated by a NULL-byte char, i.e. argv[argc] is NULL. ○ Each string in argv[] is also null-terminated. • Non-portable method of accessing commandline arguments on Linux: ○ /proc/PID/cmdline ○ Or /proc/self/cmdline if the process is getting its own cmdline args. • ARG_MAX value, i.e. total number of bytes that can be supplied via args. ○ Total space for argv and environ (env variables sorta) can be specified with RLIMIT_STACK resource limit. 6 7 Environment List • Children inherit parent data • Environment variables: name=value pairs. • Export SHELL=/bin/sh ○ This is an example of an env var ○ Printenv to see a list of all env vars ○ Env list of any process can be found at /proc/PID/environ • Accessing the environment from a C program ○ **environ points to an array, where each element points to the environment variables ○ Stepping through this array is done with pointers, even though it&#39;s an array. § Reason being that there is no argc value that specifies the size of the environ array. ○ Getenv(name) returns point to the value of an environment variable name § THIS IS PORTABLE!! ○ You can also make changes to environment variables with putenv() and setenv(). § Use case: when you use fork() to create child processes, you want the child processes to also have this modified environment. ○ Executing SUID (set-used-ID) programs securely may require using clearenv() to clear all env vars first. ○ When you call setenv(), a memory buffer is allocated to store the name=value pair. § If a program repeatedly calls setenv() and clearenv(), this memory buffer does NOT get free&#39;d. □ This could lead to memory leaks. □ In practice, it does not, because programs tend to use clearenv() only on startup. 6 8 Performing a Non Local GoTo • Nonlocal goto means going from e.g. a function to some other memory area outside of the function. • Caveat: you cannot goto another function from a current function using goto, but you CAN using setjmp() and longjmp(). • Example use case: ○ Imagine multiple functions being called in a stack. ○ Each called function supplies its caller with a status value. ○ If an error status occurs at any stage, to go back to a normally executing function, we might have to pop several function calls from the stack. § Instead of going one by one, we can use the setjmp() and longjmp() commands to directly jump back to an OK function. • C does not allow for nested functions e.g. where you define X() then within X() you define Y(). So compiler has no way of knowing if Y is on the stack if a goto is written in X(). Pascal for example allows for this nesting and can thus in certain scenarios determine that a goto is possible. • Jump calls: ○ Setjmp(jmp_buf env); § Returns 0 on initial return, val when a longjmp() returns to setjmp() ○ Longjmp(jmp_buf env, int val); § Val specifies a value to supply the setjmp() with. That way, you can use val to distinguish which part of the program called setjmp(). If val is set to 0, it is automatically changed to 1 to avoid being misinterpreted as being the default 0. ○ Env stores the following: 1. Stack pointer register (that points to the top of the stack) (so it can &quot;erase&quot; unneeded function calls by simply moving the pointer to the same place it was when setjmp() was declared when longjmp() is called, accomplishing our intended purpose) 2. Program counter register (so it knows where setjmp() was executing from) • Env usually declared as a global var (or, less commonly, passed as function param) ○ There are restrictions specified by SUSv3 and C99 on when setjmp() can be used. Examples include: • If/while/switch • Etc • S = setjmp(env); is not standards conformant □ Somehow cannot guarantee setjmp() in this way has all the necessary info to save register values and the full stack. • Abusing longjmp() 1. Declare global buffer env. 2. Inside x(), setjmp(). 3. x() returns. 4. y() calls longjmp() to the setjmp() inside x(). • PROBLEM: x() is NOT on the stack! Chaos ensues. Program crash or infinite call-return loop, where the program thinks it&#39;s returning from a legitimate call. • Setjmp/longjmp are ran at run-time, not during lexical analysis by the compiler during compilation time. ○ In some cases, due to compiler optimizations, because setjmp/longjmp may not store all relevant register values, could lead to wrong values being returned after a longjmp. ○ Any local variables that the compiler does optimizations for (which may include code REORGANIZATION, which explains the /proc/setjmp_vars.c result to some degree), and most commonly Pointer variables and simple types such as char, int, float, and long are vulnerable. • Declare each local variable that may be impacted by setjmp/longjmp as &quot;VOLATILE&quot; to tell the compiler NOT to do optimizations for it. ○ See /proc/setjmp_vars.c * You should generally avoid using set/longjmp due to po" />
+<link rel="canonical" href="http://localhost:4000/tlpi/2023/05/22/tlpi-ch6.html" />
+<meta property="og:url" content="http://localhost:4000/tlpi/2023/05/22/tlpi-ch6.html" />
+<meta property="og:site_name" content="aljica" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2023-05-22T00:00:00+02:00" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="The Linux Programming Interface Chapter 6 Processes Summary" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"BlogPosting","dateModified":"2023-05-22T00:00:00+02:00","datePublished":"2023-05-22T00:00:00+02:00","description":"6.1 6.2 6.3 Memory Layout of a Process 6.4 Virtual Memory Management 6.6 Command Line Arguments 6.7 Environment List 6.8 Performing a Non Local GoTo 6 1 • A program on disk consists of the following: 1. Binary identification. i. What file-format it is. On Linux, ELF (Executable &amp; Linking format). 2. Machine instructions. 3. Location of entry-point (main function). 4. Data/constants/strings. 5. Names of variables/functions. 6. Shared libraries. 7. Other information on how to construct a process. • Kernel data structures involved in maintaining a process: ○ Virtual memory table/information. ○ File descriptor table. ○ Signal handling information. ○ Resource usage/limits. 6 2 • Process ID (PID). • Pid_t Getpid(void). ○ Pid_t is an integer type. • Maximum process ID number is 32,767. This is defined as a PID_MAX macro in Linux kernel. • The PID number can be increased via /proc/sys/kernel/pid_max file. • When the maximum PID number is reached, it begins from a low number again (PID 300, not PID 1, because PID 1 - 300 are often used by system daemons and processes). • Pid_t getppid(void) - gets parent PID. ○ See family tree of processes with pstree. 6 3 Memory Layout of a Process • The layout: 1. Machine instructions. Each process-instance of the program points to these machine instructions (and initialized/uninitialized data segments, described below). 2. Initialized data segments. Explicitly declared variables. i. E.g. int I = 10; 3. Uninitialized data segments, e.g. int I;. Not explicitly declared variables. 4. Stack. i. Each new function call gets a stack frame in the stack. ii. Contains the function&#39;s local variables, parameters and return value. 5. Heap. i. For dynamically allocating memory. • (Un)initialized data in main() function get stored in the (un)initialized data segments (and not main()&#39;s stack frame), whereas such data in another function get stored in the stack frame of that function. • Application Binary Interface (ABI) - set of rules for communication. A binary executable informs kernel/some library on how they should exchange certain important information. The ABI tells the kernel which registers and stack locations it will use to exchange this information. • Extern char etext, edata, end. ○ Extern char etext is the next byte after the end of the program text/code/instructions. ○ Edata is the unintiialized data segment. ○ End is the init data segment. 6 4 Virtual Memory Management • Locality of reference ○ Temporal locality § A program will use the same information again if it used it recently ○ Spatial locality § A program will use information close to information it recently used • RAM is divided into page frames • Virtual memory is divided into pages as well • Page size on Linux x86-32 = 4096 bytes • Swap ○ Can be used to store additional, unused pages. § If a process requests a page that happens to be in swap, page fault occurs: kernel must pause the process&#39;s execution and fetch the page(s). • Each process has a virtual page table. ○ Each element in the virtual page table points to a page in virtual address memory. § Each of these elements in turn point to either physical RAM memory where the page is stored, or indicate that the page is on disk. ○ If a process tries to access an element in the virtual page table that does not exist, a SIGSEGV signal is sent. § Unusued memory do not have to be added as entries in the virtual page table. • 4 situations when virtual address space of a process can change as kernel allocates/deallocates memory: ○ Stack grows downward ○ Heap grows ○ System-V related things ○ Mmap() or munmap() is used • There are 3 main benefits to mapping virtual addresses&#39; of processes to physical RAM memory: ○ Isolation § A process only has access to the physical RAM pages that are mapped to that process&#39;s page table. ○ Memory sharing § Processes can share code, data, without duplicating it. ○ Memory protection § You can have different access privileges set for different processes for the same data. □ e.g. read for pid7, read-write for pid10. • Stack starts at high address, and grows downward. ○ Whenever a function call or global/main variable declaration is made, a stack frame is added. ○ There&#39;s a register that keeps track of the current &quot;top&quot; of the stack, i.e. the end of the stack in the direction it grows in. • Kernel memory/stack at beginning of each process ○ If that user process makes a syscall, kernel can use this separate stack to add function calls. • Functions use a program counter CPU register to keep track of which machine instructions to execute next. ○ If another function is called, the new stack frame of the called function includes this machine instruction so that it can be saved, so that once the called function returns, the original function knows what to do. 6 6 Command Line Arguments • Argc/argv • Argv[0] is the name of the program ○ The program can check the name used when calling it by looking at argv[0] ○ The program can then have different behavior if for example the user called gzip as opposed to gunzip. • The array of elements is terminated by a NULL-byte char, i.e. argv[argc] is NULL. ○ Each string in argv[] is also null-terminated. • Non-portable method of accessing commandline arguments on Linux: ○ /proc/PID/cmdline ○ Or /proc/self/cmdline if the process is getting its own cmdline args. • ARG_MAX value, i.e. total number of bytes that can be supplied via args. ○ Total space for argv and environ (env variables sorta) can be specified with RLIMIT_STACK resource limit. 6 7 Environment List • Children inherit parent data • Environment variables: name=value pairs. • Export SHELL=/bin/sh ○ This is an example of an env var ○ Printenv to see a list of all env vars ○ Env list of any process can be found at /proc/PID/environ • Accessing the environment from a C program ○ **environ points to an array, where each element points to the environment variables ○ Stepping through this array is done with pointers, even though it&#39;s an array. § Reason being that there is no argc value that specifies the size of the environ array. ○ Getenv(name) returns point to the value of an environment variable name § THIS IS PORTABLE!! ○ You can also make changes to environment variables with putenv() and setenv(). § Use case: when you use fork() to create child processes, you want the child processes to also have this modified environment. ○ Executing SUID (set-used-ID) programs securely may require using clearenv() to clear all env vars first. ○ When you call setenv(), a memory buffer is allocated to store the name=value pair. § If a program repeatedly calls setenv() and clearenv(), this memory buffer does NOT get free&#39;d. □ This could lead to memory leaks. □ In practice, it does not, because programs tend to use clearenv() only on startup. 6 8 Performing a Non Local GoTo • Nonlocal goto means going from e.g. a function to some other memory area outside of the function. • Caveat: you cannot goto another function from a current function using goto, but you CAN using setjmp() and longjmp(). • Example use case: ○ Imagine multiple functions being called in a stack. ○ Each called function supplies its caller with a status value. ○ If an error status occurs at any stage, to go back to a normally executing function, we might have to pop several function calls from the stack. § Instead of going one by one, we can use the setjmp() and longjmp() commands to directly jump back to an OK function. • C does not allow for nested functions e.g. where you define X() then within X() you define Y(). So compiler has no way of knowing if Y is on the stack if a goto is written in X(). Pascal for example allows for this nesting and can thus in certain scenarios determine that a goto is possible. • Jump calls: ○ Setjmp(jmp_buf env); § Returns 0 on initial return, val when a longjmp() returns to setjmp() ○ Longjmp(jmp_buf env, int val); § Val specifies a value to supply the setjmp() with. That way, you can use val to distinguish which part of the program called setjmp(). If val is set to 0, it is automatically changed to 1 to avoid being misinterpreted as being the default 0. ○ Env stores the following: 1. Stack pointer register (that points to the top of the stack) (so it can &quot;erase&quot; unneeded function calls by simply moving the pointer to the same place it was when setjmp() was declared when longjmp() is called, accomplishing our intended purpose) 2. Program counter register (so it knows where setjmp() was executing from) • Env usually declared as a global var (or, less commonly, passed as function param) ○ There are restrictions specified by SUSv3 and C99 on when setjmp() can be used. Examples include: • If/while/switch • Etc • S = setjmp(env); is not standards conformant □ Somehow cannot guarantee setjmp() in this way has all the necessary info to save register values and the full stack. • Abusing longjmp() 1. Declare global buffer env. 2. Inside x(), setjmp(). 3. x() returns. 4. y() calls longjmp() to the setjmp() inside x(). • PROBLEM: x() is NOT on the stack! Chaos ensues. Program crash or infinite call-return loop, where the program thinks it&#39;s returning from a legitimate call. • Setjmp/longjmp are ran at run-time, not during lexical analysis by the compiler during compilation time. ○ In some cases, due to compiler optimizations, because setjmp/longjmp may not store all relevant register values, could lead to wrong values being returned after a longjmp. ○ Any local variables that the compiler does optimizations for (which may include code REORGANIZATION, which explains the /proc/setjmp_vars.c result to some degree), and most commonly Pointer variables and simple types such as char, int, float, and long are vulnerable. • Declare each local variable that may be impacted by setjmp/longjmp as &quot;VOLATILE&quot; to tell the compiler NOT to do optimizations for it. ○ See /proc/setjmp_vars.c * You should generally avoid using set/longjmp due to po","headline":"The Linux Programming Interface Chapter 6 Processes Summary","mainEntityOfPage":{"@type":"WebPage","@id":"http://localhost:4000/tlpi/2023/05/22/tlpi-ch6.html"},"url":"http://localhost:4000/tlpi/2023/05/22/tlpi-ch6.html"}</script>
+<!-- End Jekyll SEO tag -->
+<link rel="stylesheet" href="/assets/main.css"><link type="application/atom+xml" rel="alternate" href="http://localhost:4000/feed.xml" title="aljica" /></head>
+<body><header class="site-header" role="banner">
+
+  <div class="wrapper"><a class="site-title" rel="author" href="/">aljica</a><nav class="site-nav">
+        <input type="checkbox" id="nav-trigger" class="nav-trigger" />
+        <label for="nav-trigger">
+          <span class="menu-icon">
+            <svg viewBox="0 0 18 15" width="18px" height="15px">
+              <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.483,1.484-1.483h15.032C17.335,12.031,18,12.695,18,13.516L18,13.516z"/>
+            </svg>
+          </span>
+        </label>
+
+        <div class="trigger"><a class="page-link" href="/architecture/">Architecture</a><a class="page-link" href="/az305/">Azure</a><a class="page-link" href="/linux/">Linux</a><a class="page-link" href="/posts/">Posts</a><a class="page-link" href="/security/">Security</a><a class="page-link" href="/summary/">Summaries</a></div>
+      </nav></div>
+</header>
+<main class="page-content" aria-label="Content">
+      <div class="wrapper">
+        <article class="post h-entry" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title p-name" itemprop="name headline">The Linux Programming Interface Chapter 6 Processes Summary</h1>
+    <p class="post-meta">
+      <time class="dt-published" datetime="2023-05-22T00:00:00+02:00" itemprop="datePublished">May 22, 2023
+      </time></p>
+  </header>
+
+  <div class="post-content e-content" itemprop="articleBody">
+    <p><a href="#6-1">6.1</a></p>
+
+<p><a href="#6-2">6.2</a></p>
+
+<p><a href="#6-3-memory-layout-of-a-process">6.3 Memory Layout of a Process</a></p>
+
+<p><a href="#6-4-virtual-memory-management">6.4 Virtual Memory Management</a></p>
+
+<p><a href="#6-6-command-line-arguments">6.6 Command Line Arguments</a></p>
+
+<p><a href="#6-7-environment-list">6.7 Environment List</a></p>
+
+<p><a href="#6-8-performing-a-non-local-goto">6.8 Performing a Non Local GoTo</a></p>
+
+<h1 id="6-1">6 1</h1>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>• A program on disk consists of the following:
+	1. Binary identification.
+		i. What file-format it is. On Linux, ELF (Executable &amp; Linking format).
+	2. Machine instructions.
+	3. Location of entry-point (main function).
+	4. Data/constants/strings.
+	5. Names of variables/functions.
+	6. Shared libraries.
+	7. Other information on how to construct a process.
+• Kernel data structures involved in maintaining a process:
+	○ Virtual memory table/information.
+	○ File descriptor table.
+	○ Signal handling information.
+	○ Resource usage/limits.
+</code></pre></div></div>
+
+<h1 id="6-2">6 2</h1>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>• Process ID (PID).
+• Pid_t Getpid(void).
+	○ Pid_t is an integer type.
+• Maximum process ID number is 32,767. This is defined as a PID_MAX macro in Linux kernel.
+• The PID number can be increased via /proc/sys/kernel/pid_max file.
+• When the maximum PID number is reached, it begins from a low number again (PID 300, not PID 1, because PID 1 - 300 are often used by system daemons and processes).
+• Pid_t getppid(void) - gets parent PID.
+	○ See family tree of processes with pstree.
+</code></pre></div></div>
+
+<h1 id="6-3-memory-layout-of-a-process">6 3 Memory Layout of a Process</h1>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>• The layout:
+	1. Machine instructions. Each process-instance of the program points to these machine instructions (and initialized/uninitialized data segments, described below).
+	2. Initialized data segments. Explicitly declared variables.
+		i. E.g. int I = 10;
+	3. Uninitialized data segments, e.g. int I;. Not explicitly declared variables.
+	4. Stack.
+		i. Each new function call gets a stack frame in the stack.
+		ii. Contains the function's local variables, parameters and return value.
+	5. Heap.
+		i. For dynamically allocating memory.
+• (Un)initialized data in main() function get stored in the (un)initialized data segments (and not main()'s stack frame), whereas such data in another function get stored in the stack frame of that function.
+• Application Binary Interface (ABI) - set of rules for communication. A binary executable informs kernel/some library on how they should exchange certain important information. The ABI tells the kernel which registers and stack locations it will use to exchange this information.
+• Extern char etext, edata, end.
+	○ Extern char etext is the next byte after the end of the program text/code/instructions.
+	○ Edata is the unintiialized data segment.
+	○ End is the init data segment.
+</code></pre></div></div>
+
+<h1 id="6-4-virtual-memory-management">6 4 Virtual Memory Management</h1>
+
+<p><img src="/docs/assets/images/tlpi-6.4-1.jpg" alt="Image" /></p>
+
+<p><img src="/docs/assets/images/tlpi-6.4-2.png" alt="Image" /></p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>• Locality of reference
+	○ Temporal locality
+		§ A program will use the same information again if it used it recently
+	○ Spatial locality
+		§ A program will use information close to information it recently used
+• RAM is divided into page frames
+• Virtual memory is divided into pages as well
+• Page size on Linux x86-32 = 4096 bytes
+• Swap
+	○ Can be used to store additional, unused pages.
+		§ If a process requests a page that happens to be in swap, page fault occurs: kernel must pause the process's execution and fetch the page(s).
+• Each process has a virtual page table.
+	○ Each element in the virtual page table points to a page in virtual address memory.
+		§ Each of these elements in turn point to either physical RAM memory where the page is stored, or indicate that the page is on disk.
+	○ If a process tries to access an element in the virtual page table that does not exist, a SIGSEGV signal is sent.
+		§ Unusued memory do not have to be added as entries in the virtual page table.
+• 4 situations when virtual address space of a process can change as kernel allocates/deallocates memory:
+	○ Stack grows downward
+	○ Heap grows
+	○ System-V related things
+	○ Mmap() or munmap() is used
+• There are 3 main benefits to mapping virtual addresses' of processes to physical RAM memory:
+	○ Isolation
+		§ A process only has access to the physical RAM pages that are mapped to that process's page table.
+	○ Memory sharing
+		§ Processes can share code, data, without duplicating it.
+	○ Memory protection
+		§ You can have different access privileges set for different processes for the same data.
+			□ e.g. read for pid7, read-write for pid10.
+• Stack starts at high address, and grows downward.
+	○ Whenever a function call or global/main variable declaration is made, a stack frame is added.
+	○ There's a register that keeps track of the current "top" of the stack, i.e. the end of the stack in the direction it grows in.
+• Kernel memory/stack at beginning of each process
+	○ If that user process makes a syscall, kernel can use this separate stack to add function calls.
+• Functions use a program counter CPU register to keep track of which machine instructions to execute next.
+	○ If another function is called, the new stack frame of the called function includes this machine instruction so that it can be saved, so that once the called function returns, the original function knows what to do.
+</code></pre></div></div>
+
+<p><img src="/docs/assets/images/tlpi-6.4-3.jpg" alt="Image" /></p>
+
+<p><img src="/docs/assets/images/tlpi-6.4-4.png" alt="Image" /></p>
+
+<h1 id="6-6-command-line-arguments">6 6 Command Line Arguments</h1>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>• Argc/argv
+• Argv[0] is the name of the program
+	○ The program can check the name used when calling it by looking at argv[0]
+	○ The program can then have different behavior if for example the user called gzip as opposed to gunzip.
+• The array of elements is terminated by a NULL-byte char, i.e. argv[argc] is NULL.
+	○ Each string in argv[] is also null-terminated.
+• Non-portable method of accessing commandline arguments on Linux:
+	○ /proc/PID/cmdline
+	○ Or /proc/self/cmdline if the process is getting its own cmdline args.
+• ARG_MAX value, i.e. total number of bytes that can be supplied via args.
+	○ Total space for argv and environ (env variables sorta) can be specified with RLIMIT_STACK resource limit.
+</code></pre></div></div>
+
+<h1 id="6-7-environment-list">6 7 Environment List</h1>
+
+<p><img src="/docs/assets/images/tlpi-6.4-environ.png" alt="Image" /></p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>• Children inherit parent data
+• Environment variables: name=value pairs.
+• Export SHELL=/bin/sh
+	○ This is an example of an env var
+	○ Printenv to see a list of all env vars
+	○ Env list of any process can be found at /proc/PID/environ
+• Accessing the environment from a C program
+	○ **environ points to an array, where each element points to the environment variables
+	○ Stepping through this array is done with pointers, even though it's an array.
+		§ Reason being that there is no argc value that specifies the size of the environ array.
+	○ Getenv(name) returns point to the value of an environment variable name
+		§ THIS IS PORTABLE!!
+	○ You can also make changes to environment variables with putenv() and setenv().
+		§ Use case: when you use fork() to create child processes, you want the child processes to also have this modified environment.
+	○ Executing SUID (set-used-ID) programs securely may require using clearenv() to clear all env vars first.
+	○ When you call setenv(), a memory buffer is allocated to store the name=value pair.
+		§ If a program repeatedly calls setenv() and clearenv(), this memory buffer does NOT get free'd.
+			□ This could lead to memory leaks.
+			□ In practice, it does not, because programs tend to use clearenv() only on startup.
+</code></pre></div></div>
+
+<h1 id="6-8-performing-a-non-local-goto">6 8 Performing a Non Local GoTo</h1>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>• Nonlocal goto means going from e.g. a function to some other memory area outside of the function.
+• Caveat: you cannot goto another function from a current function using goto, but you CAN using setjmp() and longjmp().
+• Example use case:
+	○ Imagine multiple functions being called in a stack.
+	○ Each called function supplies its caller with a status value.
+	○ If an error status occurs at any stage, to go back to a normally executing function, we might have to pop several function calls from the stack.
+		§ Instead of going one by one, we can use the setjmp() and longjmp() commands to directly jump back to an OK function.
+• C does not allow for nested functions e.g. where you define X() then within X() you define Y(). So compiler has no way of knowing if Y is on the stack if a goto is written in X(). Pascal for example allows for this nesting and can thus in certain scenarios determine that a goto is possible.
+• Jump calls:
+	○ Setjmp(jmp_buf env);
+		§ Returns 0 on initial return, val when a longjmp() returns to setjmp()
+	○ Longjmp(jmp_buf env, int val);
+		§ Val specifies  a value to supply the setjmp() with. That way, you can use val to distinguish which part of the program called setjmp(). If val is set to 0, it is automatically changed to 1 to avoid being misinterpreted as being the default 0.
+	○ Env stores the following:
+		1. Stack pointer register (that points to the top of the stack) (so it can "erase" unneeded function calls by simply moving the pointer to the same place it was when setjmp() was declared when longjmp() is called, accomplishing our intended purpose)
+		2. Program counter register (so it knows where setjmp() was executing from)
+		• Env usually declared as a global var (or, less commonly, passed as function param)
+	○ There are restrictions specified by SUSv3 and C99 on when setjmp() can be used. Examples include:
+		• If/while/switch
+		• Etc
+		• S = setjmp(env); is not standards conformant
+			□ Somehow cannot guarantee setjmp() in this way has all the necessary info to save register values and the full stack.
+• Abusing longjmp()
+	1. Declare global buffer env.
+	2. Inside x(), setjmp().
+	3. x() returns.
+	4. y() calls longjmp() to the setjmp() inside x().
+		• PROBLEM: x() is NOT on the stack! Chaos ensues. Program crash or infinite call-return loop, where the program thinks it's returning from a legitimate call.
+• Setjmp/longjmp are ran at run-time, not during lexical analysis by the compiler during compilation time.
+	○ In some cases, due to compiler optimizations, because setjmp/longjmp may not store all relevant register values, could lead to wrong values being returned after a longjmp.
+	○ Any local variables that the compiler does optimizations for (which may include code REORGANIZATION, which explains the /proc/setjmp_vars.c result to some degree), and most commonly Pointer variables and simple types such as char, int, float, and long are vulnerable.
+		• Declare each local variable that may be impacted by setjmp/longjmp as "VOLATILE" to tell the compiler NOT to do optimizations for it.
+	○ See /proc/setjmp_vars.c
+    * You should generally avoid using set/longjmp due to po
+</code></pre></div></div>
+
+  </div><a class="u-url" href="/tlpi/2023/05/22/tlpi-ch6.html" hidden></a>
+</article>
+
+      </div>
+    </main><footer class="site-footer h-card">
+  <data class="u-url" href="/"></data>
+
+  <div class="wrapper">
+
+    <h2 class="footer-heading">aljica</h2>
+
+    <div class="footer-col-wrapper">
+      <div class="footer-col footer-col-1">
+        <ul class="contact-list">
+          <li class="p-name">aljica</li><li><a class="u-email" href="mailto:aljica@kth.se">aljica@kth.se</a></li></ul>
+      </div>
+
+      <div class="footer-col footer-col-2"><ul class="social-media-list"><li><a href="https://github.com/aljica"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#github"></use></svg> <span class="username">aljica</span></a></li></ul>
+</div>
+
+      <div class="footer-col footer-col-3">
+        <p></p>
+      </div>
+    </div>
+
+  </div>
+
+</footer>
+</body>
+
+</html>
